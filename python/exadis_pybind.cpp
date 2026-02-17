@@ -953,17 +953,16 @@ PYBIND11_MODULE(pyexadis, m) {
     py::class_<CrystalParams>(m, "CrystalParams")
         .def(py::init<>())
         .def("set_crystal_type", &CrystalParams::set_crystal_type, "Set the crystal type")
+        .def_readonly("type", &Crystal::type, "Index of the crystal type")
         .def_readwrite("R", &CrystalParams::R, "Crystal orientation matrix")
         .def_readwrite("use_glide_planes", &CrystalParams::use_glide_planes, "Use and maintain dislocation glide planes")
         .def_readwrite("enforce_glide_planes", &CrystalParams::enforce_glide_planes, "Enforce glide planes option")
         .def_readwrite("num_bcc_plane_families", &CrystalParams::num_bcc_plane_families, "Number of BCC plane families (1, 2, or 3)");
     
-    py::class_<Crystal>(m, "Crystal")
+    py::class_<Crystal, CrystalParams>(m, "Crystal")
         .def(py::init<int>(), py::arg("type"))
         .def(py::init<int, Mat33>(), py::arg("type"), py::arg("R"))
         .def(py::init<const CrystalParams&>(), py::arg("crystalparams"))
-        .def_readonly("type", &Crystal::type, "Index of the crystal type")
-        .def_readonly("R", &Crystal::R, "Crystal orientation matrix")
         .def("set_orientation", (void (Crystal::*)(Mat33)) &Crystal::set_orientation, "Set crystal orientation matrix")
         .def("set_orientation", (void (Crystal::*)(Vec3)) &Crystal::set_orientation, "Set crystal orientation via Euler angles");
         
@@ -1092,8 +1091,8 @@ PYBIND11_MODULE(pyexadis, m) {
         .def(py::init<double, double, double, double, double, double>(), py::arg("Medge"), py::arg("Mscrew"),
         py::arg("Mclimb"), py::arg("Fedge")=0.0, py::arg("Fscrew")=0.0, py::arg("vmax")=-1.0);
     py::class_<MobilityType::BCC_NL::Params>(m, "Mobility_BCC_NL_Params")
-        .def(py::init<double, double, double, double, double, double>(), py::arg("tempK"), py::arg("vmax"),
-        py::arg("Peierls"), py::arg("Bscrew"), py::arg("B0edge"), py::arg("B1edge"));
+        .def(py::init<double, double, double, double, double, double, double, double>(), py::arg("tempK"), py::arg("vmax"),
+        py::arg("Peierls"), py::arg("Bscrew"), py::arg("Rscrew"), py::arg("PeierlsTATasym"), py::arg("B0edge"), py::arg("B1edge"));
     py::class_<MobilityType::FCC_0::Params>(m, "Mobility_FCC_0_Params")
         .def(py::init<double, double, double>(), py::arg("Medge"), py::arg("Mscrew"), py::arg("vmax")=-1.0);
     py::class_<MobilityType::FCC_0_FRIC::Params>(m, "Mobility_FCC_0_FRIC_Params")

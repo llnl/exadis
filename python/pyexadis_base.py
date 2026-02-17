@@ -375,9 +375,11 @@ class MobilityLaw:
             vmax = kwargs.get('vmax', -1.0)
             Peierls = kwargs.get('Peierls', 1.2e9)
             Bscrew = kwargs.get('Bscrew', 4.6e-4)
+            Rscrew = kwargs.get('Rscrew', 1.0)
+            PeierlsTATasym = kwargs.get('PeierlsTATasym', 0.0)
             B0edge = kwargs.get('B0edge', 0.0)
             B1edge = kwargs.get('B1edge', 7.7e-7)
-            mobparams = pyexadis.Mobility_BCC_NL_Params(tempK, vmax, Peierls, Bscrew, B0edge, B1edge)
+            mobparams = pyexadis.Mobility_BCC_NL_Params(tempK, vmax, Peierls, Bscrew, Rscrew, PeierlsTATasym, B0edge, B1edge)
             self.mobility = pyexadis.make_mobility_bcc_nl(params=params, mobparams=mobparams)
             
         elif self.mobility_law == 'FCC_0':

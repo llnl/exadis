@@ -38,16 +38,20 @@ struct MobilityBCC_nl
     struct Params {
         double PEIERLS_SCREW = 1.2e9; // Pa
         double B_SCREW       = 4.6e-4; // Pa.s
+        double R_SCREW       = 1.0; // unitless
+        double PEIERLS_TAT   = 0.0; // unitless
         double B0_EDGE       = 0.0; // Pa.s
         double B1_EDGE       = 7.7e-7; // Pa.s/K
         double tempK;
         double vmax;
         Params() { tempK = 300.0; vmax = -1.0; }
         Params(double _tempK, double _vmax) : tempK(_tempK), vmax(_vmax) {}
-        Params(double _tempK, double _vmax, double _PEIERLS_SCREW, double _B_SCREW,
-               double _B0_EDGE, double _B1_EDGE) : tempK(_tempK), vmax(_vmax) {
+        Params(double _tempK, double _vmax, double _PEIERLS_SCREW, double _B_SCREW, double _R_SCREW,
+               double _PEIERLS_TAT, double _B0_EDGE, double _B1_EDGE) : tempK(_tempK), vmax(_vmax) {
             PEIERLS_SCREW = _PEIERLS_SCREW;
             B_SCREW       = _B_SCREW;
+            R_SCREW       = _R_SCREW;
+            PEIERLS_TAT   = _PEIERLS_TAT;
             B0_EDGE       = _B0_EDGE;
             B1_EDGE       = _B1_EDGE;
         }
@@ -68,8 +72,8 @@ struct MobilityBCC_nl
     }
     
     KOKKOS_INLINE_FUNCTION
-    void FscaleEdge(System* system, double feinit, double vin, const Vec3& burg,
-                    double *fout, double *dfdv, double *dfdvlin, double *d2fdv2)
+    void FscaleEdge(System* system, double vin, const Vec3& burg,
+                    double& fout, double& dfdv, double& dfdvlin)
     {
         double bt = params.B0_EDGE + params.tempK * params.B1_EDGE;
 
@@ -79,10 +83,9 @@ struct MobilityBCC_nl
         double fdrag = bt * vmag;
         double dfdragdv = bt;
 
-        *fout = fdrag * vsign;
-        *dfdv = dfdragdv;
-        *dfdvlin = *dfdv; 
-        *d2fdv2 = 0.0;
+        fout = fdrag * vsign;
+        dfdv = dfdragdv;
+        dfdvlin = dfdv;
     }
     
     KOKKOS_INLINE_FUNCTION
@@ -96,8 +99,8 @@ struct MobilityBCC_nl
         double vmag = dot(vel, glidedir);
         double ftest = dot(fedrag, glidedir);
         
-        double fout, dfdv, dfdvlin, d2fdv2;
-        FscaleEdge(system, ftest, vmag, burg, &fout, &dfdv, &dfdvlin, &d2fdv2);
+        double fout, dfdv, dfdvlin;
+        FscaleEdge(system, vmag, burg, fout, dfdv, dfdvlin);
 
         double Beclimb = dfdvlin * 1.0e+03;
         double Beline = dfdvlin * 1.0e-03;
@@ -109,14 +112,19 @@ struct MobilityBCC_nl
     }
     
     KOKKOS_INLINE_FUNCTION
-    void FscaleScrew(System* system, double fsinit, double vin, const Vec3& burg,
-                     double *fout, double *dfdv, double *dfdvlin, double *d2fdv2)
+    void FscaleScrew(System* system, double vin, double psi, const Vec3& burg,
+                     double& fout, double& dfdv, double& dfdvlin, double& dfdpsi)
     {
         double burgmag = system->params.burgmag;
         double factor110 = sqrt(3.0)/2.0; 
         double bnorm = burg.norm();
         double tempK = params.tempK;
-        double taus = params.PEIERLS_SCREW*(1.0-1.e-3*tempK)*(1.0-1.e-3*tempK)*bnorm;
+
+        double upsi = 1.0 + params.PEIERLS_TAT * (psi+M_PI/6.0)/M_PI*3.0;
+        double dudpsi = params.PEIERLS_TAT / M_PI*3.0;
+
+        double p = params.PEIERLS_SCREW*(1.0-1.e-3*tempK)*(1.0-1.e-3*tempK)*bnorm;
+        double taus = p * upsi;
         taus = taus + 1.0e3; // avoid singularity around 1000K
         double v0 = 1.33318333e-10*tempK*tempK*tempK - 1.4985e-8*tempK*tempK -
                     2.3379833333e-6*tempK+2.5045e-4;
@@ -137,38 +145,38 @@ struct MobilityBCC_nl
             // below a very small velocity value, same as taus*dfthermdv but
             // set the vmag to be zero
             // note: dfdvlin = taus * dfdragdv
-            *fout = 0.0e0;
-            *dfdv = taus * alpha * beta / c0p * pow(v0, beta-1.0);
-            *dfdvlin = bzero;
-            *d2fdv2 = 0.0;
+            fout = 0.0;
+            dfdv = taus * alpha * beta * factor110 / c0p * pow(v0, beta-1.0);
+            dfdvlin = bzero;
+            dfdpsi = 0.0;
             return;
         }
-            
-        double ftherm = alpha * (pow(ratio+v0, beta) - pow(v0, beta));
-        double dfthermdv = alpha * beta / c0p * pow(ratio+v0, beta-1.0);
+        
+        double beta1 = params.R_SCREW * beta;
+        double ftherm = alpha * (pow(ratio+v0, beta) - pow(v0, beta1));
+        double dfthermdv = alpha * beta * factor110 / c0p * pow(ratio+v0, beta-1.0);
         double fdrag = bzero * vmag / taus;
-        double dfdragdv = bzero / taus;
+        double dfdragdv = bzero * factor110 / taus;
+        double fdragtherm = pow(pow(fdrag, n)+pow(ftherm, n), ninv);
+        double dfdragtherm = pow(pow(fdrag, n)+pow(ftherm, n), ninv-1.0);
         
-        double fmag = taus * pow(pow(fdrag, n)+pow(ftherm, n), ninv);
-        double dfmagdfdrag = taus * pow(fdrag, n-1.0) *
-                             pow(pow(fdrag, n)+pow(ftherm, n), ninv-1.0);
-        double dfmagdftherm = taus * pow(ftherm, n-1.0) *
-                              pow(pow(fdrag, n)+pow(ftherm, n), ninv-1.0);
-        double dfmagdv = dfmagdfdrag * dfdragdv + dfmagdftherm * dfthermdv;
+        double fmag = taus * fdragtherm;
+        double dfmagdfdrag = taus * pow(fdrag, n-1.0) * dfdragtherm;
+        double dfmagdftherm = taus * pow(ftherm, n-1.0) * dfdragtherm;
         
-        *fout = fmag * vsign;
-        *dfdv = dfmagdv;
-        *dfdvlin = bzero;
-        *d2fdv2 = 0.0;
+        fout = fmag * vsign;
+        dfdv = dfmagdfdrag * dfdragdv + dfmagdftherm * dfthermdv;
+        dfdvlin = bzero;
+        dfdpsi = p * dudpsi * (fdragtherm - dfmagdfdrag * fdrag / taus);
     }
     
     KOKKOS_INLINE_FUNCTION
     void ScrewDrag(System* system, Vec3& vel, const Vec3& burg,
-                   Vec3& finit, Mat33& dfsdragdv)
+                   const double tdotb, Vec3& fsdrag, Mat33& dfsdragdv)
     {
         double eps = 1.0e-12;
         double bnorm = burg.norm();
-        Vec3 linedir = 1.0 / bnorm * burg;
+        Vec3 linedir = SIGN(tdotb) / bnorm * burg;
         Mat33 linedirTM = outer(linedir, linedir);
         Mat33 glidedirmat = Mat33().eye() - linedirTM;
         
@@ -177,23 +185,74 @@ struct MobilityBCC_nl
         double vMagInv = 1.0 / (vMag + eps);
         Vec3 vdir = vMagInv * vproj;
         Mat33 dvdirdv = vMagInv * (glidedirmat - outer(vdir, vdir));
-        
-        Vec3 fproj = glidedirmat * finit;
-        double ftest = fproj.norm();
+        double vNorm = vel.norm();
+
+        double psi = -M_PI/6.0;
+        bool use_psi = (fabs(params.PEIERLS_TAT) > 0.0);
+        Vec3 dpsidv;
+        if (use_psi) {
+            Vec3 bcryst = system->crystal.Rinv * burg;
+            Vec3 tt[3];
+            tt[0] = 1.0/bnorm/sqrt(2.0)*Vec3(2*bcryst.x, -bcryst.y, -bcryst.z);
+            tt[1] = 1.0/bnorm/sqrt(2.0)*Vec3(-bcryst.x, 2*bcryst.y, -bcryst.z);
+            tt[2] = 1.0/bnorm/sqrt(2.0)*Vec3(-bcryst.x, -bcryst.y, 2*bcryst.z);
+
+            double vt[3];
+            for (int i = 0; i < 3; i++) {
+                tt[i] = system->crystal.R * tt[i]; // back to lab frame
+                tt[i] = cross(tt[i], linedir);
+                vt[i] = dot(vel, tt[i]);
+            }
+
+            // Find which of three T vectors is most aligned with the velocity
+	        // The bounding AT direction is obtained by summing the 1st and the 2nd most aligned tt
+            int n = 3;
+            int id[3] = {0, 1, 2};
+            for (int i = 0; i < n-1; i++) {
+                for (int j = 0; j < n-i-1; j++) {
+                    if (vt[j] > vt[j+1]) {
+                        double vtmp = vt[j];
+                        vt[j] = vt[j+1];
+                        vt[j+1] = vtmp;
+                        int itmp = id[j];
+                        id[j] = id[j+1];
+                        id[j+1] = itmp;
+                    }
+                }
+            }
+            Vec3 t = tt[id[2]];
+            Vec3 at = tt[id[2]] + tt[id[1]];
+
+            // (110) center plane and psi angle
+            Vec3 dx = (t + at).normalized();
+            Vec3 dz = cross(dx, at).normalized();
+            Vec3 dy = cross(dz, dx).normalized();
+
+            double u[2] = {dot(vel, dx), dot(vel, dy)};
+            psi = atan2(u[1], u[0]);
+            psi = fmax(fmin(psi, M_PI/6.0), -M_PI/6.0);
+            if ((vNorm > eps) && ((vMag/vNorm) > eps)) {
+                dpsidv = 1.0/(u[0]*u[0]+u[1]*u[1])*(u[0]*dy-u[1]*dx);
+            } else {
+                dpsidv = 0.0;
+            }
+        }
 
         double fout = 0.0;
         double dfdv = 0.0;
-        double d2fdv2 = 0.0;
         double dfdvlin;
-        FscaleScrew(system, ftest, vMag, burg, &fout, &dfdv, &dfdvlin, &d2fdv2);
+        double dfdpsi = 0.0;
+        FscaleScrew(system, vMag, psi, burg, fout, dfdv, dfdvlin, dfdpsi);
         
         double Bsline = dfdvlin * 1.0e-03;
         dfsdragdv = Bsline * linedirTM;
-        finit = (dfsdragdv * vel) + fout * vdir;
-        double vNorm = vel.norm();
+        fsdrag = (dfsdragdv * vel) + fout * vdir;
         
         if ((vNorm > eps) && ((vMag/vNorm) > eps)) {
             dfsdragdv += dfdv * outer(vdir, vdir) + fout * dvdirdv;
+            if (use_psi) {
+                dfsdragdv += dfdpsi * outer(vdir, dpsidv);
+            }
         } else {
             dfsdragdv += dfdv * glidedirmat;
         }
@@ -248,7 +307,7 @@ struct MobilityBCC_nl
             int numjunct = 0;
             Vec3 junctb[MAX_CONN], junctdir[MAX_CONN];
             Vec3 screwb[MAX_CONN], edgeb[MAX_CONN], edgenorm[MAX_CONN];
-            double dfndfjunct[MAX_CONN], dfndfscrew[MAX_CONN], dfndfedge[MAX_CONN];
+            double screwtdotb[MAX_CONN], dfndfjunct[MAX_CONN], dfndfscrew[MAX_CONN], dfndfedge[MAX_CONN];
             
             // Loop over all arms attached to the node
             for (int j = 0; j < conn[i].num; j++) {
@@ -317,6 +376,7 @@ struct MobilityBCC_nl
                         }
                         if (screwid < 0) {
                             screwb[numscrews] = burg;
+                            screwtdotb[numscrews] = dot(linedir, 1.0/bnorm * burg);
                             dfndfscrew[numscrews] = 0.5*LScrew;
                             numscrews++;
                         } else {
@@ -410,7 +470,7 @@ struct MobilityBCC_nl
                 Mat33 dfdv;
 
                 for (int j = 0; j < numscrews; j++) {
-                    ScrewDrag(system, vtest, screwb[j], fscrew[j], dfdv);
+                    ScrewDrag(system, vtest, screwb[j], screwtdotb[j], fscrew[j], dfdv);
                     ferror -= dfndfscrew[j] * fscrew[j];
                     dferrordv -= dfndfscrew[j] * dfdv;
                 }
@@ -425,7 +485,7 @@ struct MobilityBCC_nl
                     ferror -= BJline * dfndfjunct[j] * vtest;
                     dferrordv -= (BJline*dfndfjunct[j]) * outer(junctdir[j], junctdir[j]);
                 }
-                
+
                             
                 // Look for oscillatory behavior
                 double forceerror, fscaleError;
