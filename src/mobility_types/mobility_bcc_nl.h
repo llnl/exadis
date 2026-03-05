@@ -36,24 +36,29 @@ struct MobilityBCC_nl
 {
     const bool non_linear = true;
     struct Params {
-        double PEIERLS_SCREW = 1.2e9; // Pa
-        double B_SCREW       = 4.6e-4; // Pa.s
-        double R_SCREW       = 1.0; // unitless
-        double PEIERLS_TAT   = 0.0; // unitless
-        double B0_EDGE       = 0.0; // Pa.s
-        double B1_EDGE       = 7.7e-7; // Pa.s/K
-        double tempK;
-        double vmax;
-        Params() { tempK = 300.0; vmax = -1.0; }
+        double Peierls        = 1.2e9; // Pa
+        double Bscrew         = 4.6e-4; // Pa.s
+        double Rscrew         = 1.0; // unitless
+        double PeierlsTATasym = 0.0; // unitless
+        double B0edge         = 0.0; // Pa.s
+        double B1edge         = 7.7e-7; // Pa.s/K
+        double tempK          = 300.0; // K
+        double vmax           = -1.0; // m/s
+        Params() = default;
         Params(double _tempK, double _vmax) : tempK(_tempK), vmax(_vmax) {}
-        Params(double _tempK, double _vmax, double _PEIERLS_SCREW, double _B_SCREW, double _R_SCREW,
-               double _PEIERLS_TAT, double _B0_EDGE, double _B1_EDGE) : tempK(_tempK), vmax(_vmax) {
-            PEIERLS_SCREW = _PEIERLS_SCREW;
-            B_SCREW       = _B_SCREW;
-            R_SCREW       = _R_SCREW;
-            PEIERLS_TAT   = _PEIERLS_TAT;
-            B0_EDGE       = _B0_EDGE;
-            B1_EDGE       = _B1_EDGE;
+        Params(Dict paramslist) {
+            for (auto const& [key, val] : paramslist) {
+                std::string name = dict::get_key(key);
+                if      (name == "Peierls") Peierls = dict::get_val<double>(val);
+                else if (name == "Bscrew") Bscrew = dict::get_val<double>(val);
+                else if (name == "Rscrew") Rscrew = dict::get_val<double>(val);
+                else if (name == "PeierlsTATasym") PeierlsTATasym = dict::get_val<double>(val);
+                else if (name == "B0edge") B0edge = dict::get_val<double>(val);
+                else if (name == "B1edge") B1edge = dict::get_val<double>(val);
+                else if (name == "tempK") tempK = dict::get_val<double>(val);
+                else if (name == "vmax") vmax = dict::get_val<double>(val);
+                else ExaDiS_fatal("Error: unknown MobilityBCC_nl input parameter %s\n", name.c_str());
+            }
         }
     };
     Params params;
@@ -61,21 +66,21 @@ struct MobilityBCC_nl
     MobilityBCC_nl(System* system, Params& _params)
     {
         if (system->crystal.type != BCC_CRYSTAL)
-            ExaDiS_fatal("Error: MobilityBCC_nl() must be used with BCC crystal type\n");
+            ExaDiS_fatal("Error: MobilityBCC_nl must be used with BCC crystal type\n");
         
         params = _params;
-        if (params.PEIERLS_SCREW < 0.0 || params.B_SCREW < 0.0 || params.B0_EDGE < 0.0)
-            ExaDiS_fatal("Error: invalid MobilityBCC_nl() parameter values\n");
+        if (params.Peierls < 0.0 || params.Bscrew < 0.0 || params.B0edge < 0.0)
+            ExaDiS_fatal("Error: invalid or missing MobilityBCC_nl input parameter values\n");
         
         if (params.tempK < 100 || params.tempK > 1200)
-            ExaDiS_fatal("Error: MobilityBCC_nl() only valid in range T = 100-1200 K\n");
+            ExaDiS_fatal("Error: MobilityBCC_nl only valid in range T = 100-1200 K\n");
     }
     
     KOKKOS_INLINE_FUNCTION
     void FscaleEdge(System* system, double vin, const Vec3& burg,
                     double& fout, double& dfdv, double& dfdvlin)
     {
-        double bt = params.B0_EDGE + params.tempK * params.B1_EDGE;
+        double bt = params.B0edge + params.tempK * params.B1edge;
 
         double vmag = fabs(vin);
         double vsign = SIGN(vin);
@@ -120,10 +125,10 @@ struct MobilityBCC_nl
         double bnorm = burg.norm();
         double tempK = params.tempK;
 
-        double upsi = 1.0 + params.PEIERLS_TAT * (psi+M_PI/6.0)/M_PI*3.0;
-        double dudpsi = params.PEIERLS_TAT / M_PI*3.0;
+        double upsi = 1.0 + params.PeierlsTATasym * (psi+M_PI/6.0)/M_PI*3.0;
+        double dudpsi = params.PeierlsTATasym / M_PI*3.0;
 
-        double p = params.PEIERLS_SCREW*(1.0-1.e-3*tempK)*(1.0-1.e-3*tempK)*bnorm;
+        double p = params.Peierls*(1.0-1.e-3*tempK)*(1.0-1.e-3*tempK)*bnorm;
         double taus = p * upsi;
         taus = taus + 1.0e3; // avoid singularity around 1000K
         double v0 = 1.33318333e-10*tempK*tempK*tempK - 1.4985e-8*tempK*tempK -
@@ -134,7 +139,7 @@ struct MobilityBCC_nl
         double beta = 2e-4*tempK;
         double n = 10;
         double ninv = 1.0 / n;
-        double bzero = params.B_SCREW;
+        double bzero = params.Bscrew;
 
         double vmag = fabs(vin);
         vmag = vmag * factor110;
@@ -152,7 +157,7 @@ struct MobilityBCC_nl
             return;
         }
         
-        double beta1 = params.R_SCREW * beta;
+        double beta1 = params.Rscrew * beta;
         double ftherm = alpha * (pow(ratio+v0, beta) - pow(v0, beta1));
         double dfthermdv = alpha * beta * factor110 / c0p * pow(ratio+v0, beta-1.0);
         double fdrag = bzero * vmag / taus;
@@ -188,7 +193,7 @@ struct MobilityBCC_nl
         double vNorm = vel.norm();
 
         double psi = -M_PI/6.0;
-        bool use_psi = (fabs(params.PEIERLS_TAT) > 0.0);
+        bool use_psi = (fabs(params.PeierlsTATasym) > 0.0);
         Vec3 dpsidv;
         if (use_psi) {
             Vec3 bcryst = system->crystal.Rinv * burg;
@@ -618,5 +623,7 @@ namespace MobilityType {
 }
 
 } // namespace ExaDiS
+
+EXADIS_MOBILITY(MobilityBCC_nl, BCC_NL)
 
 #endif

@@ -12,6 +12,7 @@
 #define EXADIS_FORCE_LT_H
 
 #include "system.h"
+#include "force_core.h"
 
 namespace ExaDiS {
 
@@ -64,6 +65,8 @@ struct ForceSegLT
         double L = t.norm();
         if (L < 1e-10) return SegForce();
         t = t.normalized();
+        //double La = sqrt(L*L+a*a);
+        //t = 1.0/La * t;
 
         // Core-force
         Vec3 fsf = core->core_force(b, t);
@@ -94,6 +97,10 @@ namespace ForceType {
     typedef ForceSeg<ForceSegLT<CoreConstant,true> > CORECONST_SELF_PKEXT;
     typedef ForceSeg<ForceSegLT<CoreMD,true> > COREMD_SELF_PKEXT;
 }
+
+EXADIS_FORCE(ForceType::LINE_TENSION_MODEL, FORCE_LINE_TENSION)
+EXADIS_FORCE(ForceType::CORE_SELF_PKEXT, FORCE_CORE_SELF_PKEXT)
+EXADIS_FORCE(ForceType::COREMD_SELF_PKEXT, FORCE_COREMD_SELF_PKEXT)
 
 } // namespace ExaDiS
 

@@ -70,3 +70,6 @@ target_include_directories(pyexadis PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 target_link_libraries(pyexadis PRIVATE ${EXADIS_EXTERN_LIBS})
+target_compile_definitions(pyexadis PUBLIC -DEXADIS_PYBIND)
+
+add_dependencies(pyexadis generate_force_list generate_mobility_list)

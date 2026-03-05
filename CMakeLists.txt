@@ -101,6 +101,8 @@ set(EXADIS_SUBDIRECTORIES
 
 set(EXADIS_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/src/force_types
+    ${CMAKE_BINARY_DIR}/src/mobility_types
     ${EXADIS_SUBDIRECTORIES}
     ${FFT_INC_DIR}
 )

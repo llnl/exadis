@@ -32,30 +32,27 @@ struct MobilityBCC0b
     double Fedge, Fscrew;
     
     struct Params {
-        double Medge, Mscrew, Mclimb;
+        double Medge = -1.0, Mscrew = -1.0, Mclimb = -1.0;
         double Fedge = 0.0, Fscrew = 0.0;
         double vmax = -1.0;
-        Params() { Medge = Mscrew = Mclimb = vmax = -1.0; }
-        Params(double _Medge, double _Mscrew, double _Mclimb) {
-            Medge = _Medge;
-            Mscrew = _Mscrew;
-            Mclimb = _Mclimb;
-            vmax = -1.0;
-        }
-        Params(double _Medge, double _Mscrew, double _Mclimb, double _vmax) {
+        Params() = default;
+        Params(double _Medge, double _Mscrew, double _Mclimb, double _vmax=-1.0) {
             Medge = _Medge;
             Mscrew = _Mscrew;
             Mclimb = _Mclimb;
             vmax = _vmax;
         }
-        Params(double _Medge, double _Mscrew, double _Mclimb,
-               double _Fedge, double _Fscrew, double _vmax) {
-            Medge = _Medge;
-            Mscrew = _Mscrew;
-            Mclimb = _Mclimb;
-            Fedge = _Fedge;
-            Fscrew = _Fscrew;
-            vmax = _vmax;
+        Params(Dict paramslist) {
+            for (auto const& [key, val] : paramslist) {
+                std::string name = dict::get_key(key);
+                if      (name == "Medge") Medge = dict::get_val<double>(val);
+                else if (name == "Mscrew") Mscrew = dict::get_val<double>(val);
+                else if (name == "Mclimb") Mclimb = dict::get_val<double>(val);
+                else if (name == "Fedge") Fedge = dict::get_val<double>(val);
+                else if (name == "Fscrew") Fscrew = dict::get_val<double>(val);
+                else if (name == "vmax") vmax = dict::get_val<double>(val);
+                else ExaDiS_fatal("Error: unknown MobilityBCC0b input parameter '%s'\n", name.c_str());
+            }
         }
     };
     
@@ -66,7 +63,7 @@ struct MobilityBCC0b
             
         if (params.Medge < 0 || params.Mscrew < 0.0 || params.Mclimb < 0.0 ||
             params.Fedge < 0 || params.Fscrew < 0.0)
-            ExaDiS_fatal("Error: invalid MobilityBCC0b() parameter values\n");
+            ExaDiS_fatal("Error: invalid or missing MobilityBCC0b input parameter values\n");
         
         Bedge   = 1.0 / params.Medge;
         Bscrew  = 1.0 / params.Mscrew;
@@ -95,7 +92,7 @@ struct MobilityBCC0b
     
     template<class N>
     KOKKOS_INLINE_FUNCTION
-    Vec3 node_velocity(System *system, N *net, const int &i, const Vec3 &fi)
+    Vec3 node_velocity(System* system, N* net, const int& i, const Vec3& fi)
     {
         auto nodes = net->get_nodes();
         auto segs = net->get_segs();
@@ -162,8 +159,6 @@ struct MobilityBCC0b
                 double costheta2 = (costheta*costheta) * invbMag2;
                 
                 double dangle = 1.0 / bMag * fabs(costheta);
-                double fricStress = Fedge+(Fscrew-Fedge)*dangle;
-                FricForce += fricStress * bMag * mag;
                 
                 if (bMag > 1.0+eps) {
                     // [0 0 1] arms don't move as readily as other arms, so must be
@@ -193,6 +188,11 @@ struct MobilityBCC0b
                 } else  {
                     // Arm is not [0 0 1], so build the drag matrix assuming the
                     // dislocation is screw type
+
+                    // Friction force
+                    double fricStress = Fedge+(Fscrew-Fedge)*dangle;
+                    FricForce += fricStress * bMag * mag;
+
                     Btotal[0][0] += halfMag * (dr.x*dr.x * BlmBsc + Bscrew);
                     Btotal[0][1] += halfMag * (dr.x*dr.y * BlmBsc);
                     Btotal[0][2] += halfMag * (dr.x*dr.z * BlmBsc);
@@ -274,5 +274,7 @@ namespace MobilityType {
 }
 
 } // namespace ExaDiS
+
+EXADIS_MOBILITY(MobilityBCC0b, BCC_0B)
 
 #endif

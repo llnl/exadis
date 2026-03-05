@@ -22,6 +22,37 @@
 #define MIN(a,b) (a<b?a:b)
 #define SIGN(a) (a>0?1:(-1*(a<0)))
 
+#ifdef EXADIS_PYBIND
+#define PYBIND_ONLY(...) __VA_ARGS__
+#else
+#define PYBIND_ONLY(...)
+#endif
+
+/*---------------------------------------------------------------------------
+ *
+ *    Helper:       Pybind / C++ Dict type used for binded class parameters
+ *
+ *-------------------------------------------------------------------------*/
+#ifdef EXADIS_PYBIND
+    #include <pybind11/pybind11.h>
+    namespace py = pybind11;
+    using Dict = py::dict;
+    namespace dict {
+        template<typename T>
+        inline T get_val(const py::handle& obj) { return py::cast<T>(obj); }
+        inline std::string get_key(const py::handle& obj) { return get_val<std::string>(obj); }
+    }
+#else
+    #include <map>
+    #include <any>
+    using Dict = std::map<std::string, std::any>;
+    namespace dict {
+        template<typename T>
+        inline T get_val(const std::any& obj) { return std::any_cast<T>(obj); }
+        inline std::string get_key(const std::string& key) { return key; }
+    }
+#endif
+
 namespace ExaDiS {
 
 template <unsigned int error> void print_(const char *format, ...);

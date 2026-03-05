@@ -18,6 +18,7 @@
 #define EXADIS_FORCE_FFT_H
 
 #include "force.h"
+#include "force_segseglist.h"
 
 #ifdef EXADIS_FFT
 
@@ -1096,6 +1097,9 @@ namespace ForceType {
     typedef ForceLongShort<ForceFFT,ForceSegSegList<SegSegIsoFFT>> LONG_FFT_SHORT_ISO;
     typedef ForceCollection2<CORE_SELF_PKEXT,LONG_FFT_SHORT_ISO> DDD_FFT_MODEL;
 }
+
+EXADIS_FORCE(ForceFFT, FORCE_FFT)
+EXADIS_FORCE(ForceSegSegList<SegSegIsoFFT>, FORCE_SEGSEG_ISO_FFT)
 
 } // namespace ExaDiS
 

@@ -12,17 +12,9 @@
 #define EXADIS_FORCE_GLOBAL_H
 
 #include "force.h"
+#include "force_global_list.h"
 
 namespace ExaDiS {
-
-// Register force types and their associated class implementation.
-#define EXADIS_FORCE_GLOBAL_LIST \
-    X(ForceType::LINE_TENSION_MODEL, FORCE_LINE_TENSION) \
-    X(ForceType::CORE_SELF_PKEXT,    FORCE_CORE_SELF_PKEXT) \
-    X(ForceType::COREMD_SELF_PKEXT,  FORCE_COREMD_SELF_PKEXT) \
-    X(ForceSegSegList<SegSegIso>,    FORCE_SEGSEG_ISO) \
-    X(ForceSegSegList<SegSegIsoFFT>, FORCE_SEGSEG_ISO_FFT) \
-    X(ForceFFT,                      FORCE_FFT)
 
 /*---------------------------------------------------------------------------
  *

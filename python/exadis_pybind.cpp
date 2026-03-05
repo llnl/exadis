@@ -9,27 +9,7 @@
 
 #include "exadis_pybind.h"
 
-
-/*---------------------------------------------------------------------------
- *
- *    Submodules registry
- *
- *-------------------------------------------------------------------------*/
-static std::vector<PybindInitSubModule>& registry() {
-    static std::vector<PybindInitSubModule> r;
-    return r;
-}
-
-void register_submodule(PybindInitSubModule s) {
-    registry().push_back(s);
-}
-
-void init_registered_submodules(py::module_& m) {
-    for (auto s : registry()) {
-        s(m);
-    }
-}
-
+namespace ExaDiS {
 
 /*---------------------------------------------------------------------------
  *
@@ -172,6 +152,44 @@ std::vector<bool> Cell::is_inside_array(std::vector<Vec3>& r) {
     return inside;
 }
 
+/*---------------------------------------------------------------------------
+ *
+ *    Parameters / Crystal binding
+ *
+ *-------------------------------------------------------------------------*/
+Params::Params(
+    std::string crystalname,
+    double _burgmag,
+    double _MU, double _NU, double _a,
+    double _maxseg, double _minseg,
+    double _rann, double _rtol,
+    double _maxdt, double _nextdt,
+    int _split3node)
+{
+    set_default_params();
+    crystal.set_crystal_type(crystalname);
+    burgmag = _burgmag;
+    MU = _MU;
+    NU = _NU;
+    a = _a;
+    maxseg = _maxseg;
+    minseg = _minseg;
+    rann = _rann;
+    rtol = _rtol;
+    maxdt = _maxdt;
+    nextdt = _nextdt;
+    split3node = _split3node;
+}
+
+void CrystalParams::set_crystal_type(std::string crystalname) {
+    if (!crystalname.empty()) {
+        if (crystalname == "bcc" || crystalname == "BCC") type = BCC_CRYSTAL;
+        else if (crystalname == "fcc" || crystalname == "FCC") type = FCC_CRYSTAL;
+        else ExaDiS_fatal("Error: unknown crystal type %s in the python binding\n", crystalname.c_str());
+    }
+}
+
+namespace pybind {
 
 /*---------------------------------------------------------------------------
  *
@@ -367,45 +385,6 @@ ExaDisNet read_paradis_system(const char* file, bool verbose)
     System* system = make_system(config, Crystal(), Params());
     return ExaDisNet(system);
 }
-
-
-/*---------------------------------------------------------------------------
- *
- *    Parameters / Crystal binding
- *
- *-------------------------------------------------------------------------*/
-Params::Params(
-    std::string crystalname,
-    double _burgmag,
-    double _MU, double _NU, double _a,
-    double _maxseg, double _minseg,
-    double _rann, double _rtol,
-    double _maxdt, double _nextdt,
-    int _split3node)
-{
-    set_default_params();
-    crystal.set_crystal_type(crystalname);
-    burgmag = _burgmag;
-    MU = _MU;
-    NU = _NU;
-    a = _a;
-    maxseg = _maxseg;
-    minseg = _minseg;
-    rann = _rann;
-    rtol = _rtol;
-    maxdt = _maxdt;
-    nextdt = _nextdt;
-    split3node = _split3node;
-}
-
-void CrystalParams::set_crystal_type(std::string crystalname) {
-    if (!crystalname.empty()) {
-        if (crystalname == "bcc" || crystalname == "BCC") type = BCC_CRYSTAL;
-        else if (crystalname == "fcc" || crystalname == "FCC") type = FCC_CRYSTAL;
-        else ExaDiS_fatal("Error: unknown crystal type %s in the python binding\n", crystalname.c_str());
-    }
-}
-
 
 /*---------------------------------------------------------------------------
  *
@@ -843,79 +822,6 @@ void handle_cross_slip(ExaDisNet& disnet, CrossSlipBind& crossslipbind)
 
 /*---------------------------------------------------------------------------
  *
- *    Driver binding
- *
- *-------------------------------------------------------------------------*/
-class Driver : public ExaDiSApp {
-public:
-    Driver() : ExaDiSApp() {}
-    Driver(const SystemBind& sysbind) : ExaDiSApp() {
-        set_system_driver(sysbind);
-    }
-    void set_system_driver(const SystemBind& sysbind) {
-        system = sysbind.system;
-    }
-    void set_modules_driver(ForceBind& forcebind, MobilityBind& mobbind,
-                            IntegratorBind& integratorbind, CollisionBind& collisionbind,
-                            TopologyBind& topolbind, RemeshBind& remeshbind,
-                            CrossSlipBind& crossslipbind) {
-        force = forcebind.force;
-        mobility = mobbind.mobility;
-        integrator = integratorbind.integrator;
-        collision = collisionbind.collision;
-        topology = topolbind.topology;
-        remesh = remeshbind.remesh_class;
-        crossslip = crossslipbind.crossslip;
-    }
-    py::dict update_state(py::dict& state) {
-        double* ptr;
-        // edir
-        py::array_t<double> pyedir(3);
-        ptr = static_cast<double*>(pyedir.request().ptr);
-        ptr[0] = edir.x; ptr[1] = edir.y; ptr[2] = edir.z;
-        state["edir"] = pyedir;
-        // applied_stress
-        py::array_t<double> pystress(6);
-        ptr = static_cast<double*>(pystress.request().ptr);
-        ptr[0] = system->extstress.xx(); ptr[1] = system->extstress.yy(); ptr[2] = system->extstress.zz();
-        ptr[3] = system->extstress.yz(); ptr[4] = system->extstress.xz(); ptr[5] = system->extstress.xy();
-        state["applied_stress"] = pystress;
-        // stress / strain / density
-        state["strain"] = strain;
-        state["stress"] = stress;
-        state["density"] = system->density;
-        py::array_t<double> pyEtot(6);
-        ptr = static_cast<double*>(pyEtot.request().ptr);
-        ptr[0] = Etot.xx(); ptr[1] = Etot.yy(); ptr[2] = Etot.zz();
-        ptr[3] = Etot.yz(); ptr[4] = Etot.xz(); ptr[5] = Etot.xy();
-        state["Etot"] = pyEtot;
-        // time
-        state["dt"] = system->realdt;
-        state["time"] = tottime;
-        state["istep"] = istep;
-        return state;
-    }
-    py::dict read_restart_driver(py::dict& state, std::string restartfile) {
-        // read restart
-        ExaDiSApp::read_restart(restartfile);
-        // set crystal orientation
-        py::buffer_info buffer(
-            &system->crystal.R, sizeof(double), py::format_descriptor<double>::format(),
-            2, {3, 3}, {sizeof(double) * 3, sizeof(double)}
-        );
-        state["Rorient"] = py::array(buffer);
-        // update dictionary
-        update_state(state);
-        // replace with dummy system so that we don't delete 
-        // the original system object upon destruction
-        system = make_system(new SerialDisNet());
-        return state;
-    }
-};
-
-
-/*---------------------------------------------------------------------------
- *
  *    Binding module
  *
  *-------------------------------------------------------------------------*/
@@ -1084,25 +990,6 @@ PYBIND11_MODULE(pyexadis, m) {
         .def("set_applied_stress", &SystemBind::set_applied_stress, "Set applied stress of the system (xx,yy,zz,yz,xz,xy)")
         .def("print_timers", &SystemBind::print_timers, "Print simulation timers", py::arg("timetot")=-1.0, py::arg("dev")=false);
     
-    py::class_<MobilityType::GLIDE::Params>(m, "Mobility_GLIDE_Params")
-        .def(py::init<double>(), py::arg("Mglide"))
-        .def(py::init<double, double>(), py::arg("Medge"), py::arg("Mscrew"));
-    py::class_<MobilityType::BCC_0B::Params>(m, "Mobility_BCC_0B_Params")
-        .def(py::init<double, double, double, double, double, double>(), py::arg("Medge"), py::arg("Mscrew"),
-        py::arg("Mclimb"), py::arg("Fedge")=0.0, py::arg("Fscrew")=0.0, py::arg("vmax")=-1.0);
-    py::class_<MobilityType::BCC_NL::Params>(m, "Mobility_BCC_NL_Params")
-        .def(py::init<double, double, double, double, double, double, double, double>(), py::arg("tempK"), py::arg("vmax"),
-        py::arg("Peierls"), py::arg("Bscrew"), py::arg("Rscrew"), py::arg("PeierlsTATasym"), py::arg("B0edge"), py::arg("B1edge"));
-    py::class_<MobilityType::FCC_0::Params>(m, "Mobility_FCC_0_Params")
-        .def(py::init<double, double, double>(), py::arg("Medge"), py::arg("Mscrew"), py::arg("vmax")=-1.0);
-    py::class_<MobilityType::FCC_0_FRIC::Params>(m, "Mobility_FCC_0_FRIC_Params")
-        .def(py::init<double, double, double, double, double, std::string, std::string, double>(), 
-        py::arg("Medge"), py::arg("Mscrew"), py::arg("Fedge")=0.0, py::arg("Fscrew")=0.0, py::arg("vmax")=-1.0,
-        py::arg("mobility_field")="", py::arg("friction_field")="", py::arg("Fscale")=1.0);
-    py::class_<MobilityType::FCC_0B::Params>(m, "Mobility_FCC_0B_Params")
-        .def(py::init<double, double, double, double, double>(), py::arg("Medge"), py::arg("Mscrew"),
-        py::arg("Mclimb"), py::arg("Mclimbjunc")=-1.0, py::arg("vmax")=-1.0);
-        
     py::class_<IntegratorTrapezoid::Params>(m, "Integrator_Trapezoid_Params")
         .def(py::init<>());
     py::class_<IntegratorMulti<IntegratorTrapezoid>::Params>(m, "Integrator_Trapezoid_Multi_Params")
@@ -1156,6 +1043,11 @@ PYBIND11_MODULE(pyexadis, m) {
     py::class_<ForceType::COREMD_SELF_PKEXT::Params>(force_coremd, "Params")
         .def(py::init<double, int, std::vector<double>, int, std::vector<double>>(),
              py::arg("rc"), py::arg("porder0"), py::arg("pcoeffs0"), py::arg("porder1"), py::arg("pcoeffs1"));
+    
+    // BRUTE_FORCE_N2
+    py::class_<ForceType::BRUTE_FORCE_N2, Force> force_n2(force_m, "BRUTE_FORCE_N2");
+    py::class_<ForceType::BRUTE_FORCE_N2::Params>(force_n2, "Params")
+        .def(py::init<>());
     
     // FORCE_SEGSEG_ISO
     py::class_<ForceType::FORCE_SEGSEG_ISO, Force> force_segsegiso(force_m, "SEGSEG_ISO");
@@ -1271,21 +1163,16 @@ PYBIND11_MODULE(pyexadis, m) {
     // Mobility
     py::class_<MobilityBind>(m, "Mobility")
         .def(py::init<>())
+        .def("name", &MobilityBind::name, "Return mobility name")
         .def("compute", &MobilityBind::compute, "Compute mobility of the system");
-    m.def("make_mobility_glide", &make_mobility<MobilityType::GLIDE>, "Instantiate a GLIDE mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_bcc_0b", &make_mobility<MobilityType::BCC_0B>, "Instantiate a BCC_0B mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_bcc_nl", &make_mobility<MobilityType::BCC_NL>, "Instantiate a BCC_NL mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_fcc_0", &make_mobility<MobilityType::FCC_0>, "Instantiate a FCC_0 mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_fcc_0_fric", &make_mobility<MobilityType::FCC_0_FRIC>, "Instantiate a FCC_0_FRIC mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_fcc_0b", &make_mobility<MobilityType::FCC_0B>, "Instantiate a FCC_0B mobility law",
-          py::arg("params"), py::arg("mobparams"));
-    m.def("make_mobility_python", &make_mobility_python, "Instantiate a python-based mobility model",
-          py::arg("params"), py::arg("mobility"));
+    
+    MobilityBindingRegistry::bind_all(m);
+    
+    m.def("make_mobility", [](const std::string& name, Params& params, py::dict mobparams) {
+              auto fn = ExaDiS::pybind::MobilityFactoryRegistry::get(name);
+              if (!fn) throw py::value_error("Unknown mobility name: " + name);
+              return (*fn)(params, mobparams);
+          }, py::arg("name"), py::arg("params"), py::arg("mobparams"), "Instantiate a mobility by name");
     
     m.def("compute_mobility", &compute_mobility, "Wrapper to compute nodal velocities",
           py::arg("net"), py::arg("mobility"), py::arg("nodeforces"), py::arg("nodetags")=std::vector<NodeTag>());
@@ -1397,6 +1284,8 @@ PYBIND11_MODULE(pyexadis, m) {
           .def("MAX_TIME", &Driver::MAX_TIME, "Iterate to a maximum simulation time")
           .def("MAX_WALLTIME", &Driver::MAX_WALLTIME, "Iterate to a maximum wall clock time");
     
-    // Submodules
-    init_registered_submodules(m);
+    // Modules
+    ModuleBindingRegistry::bind_all(m);
 }
+
+} } // namespace ExaDiS::pybind
