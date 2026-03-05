@@ -452,22 +452,16 @@ typedef typename Topology::Params TParams;
 template<class F>
 Topology* make_topology_parallel(System* system, Force* force, Mobility* mobility, TParams& topolparams)
 {
-    Topology* topology;
-    if (strcmp(mobility->name(), "MobilityBCC0b") == 0) {
-        topology = new TopologyParallel<F,MobilityType::BCC_0B>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0_fric") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0_FRIC>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0b") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0B>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityGlide") == 0) {
-        topology = new TopologyParallel<F,MobilityType::GLIDE>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityBCC_nl") == 0) {
-        topology = new TopologyParallel<F,MobilityType::BCC_NL>(system, force, mobility, topolparams);
-    } else {
-        ExaDiS_fatal("Error: invalid mobility type = %s for TopologyParallel binding\n", mobility->name());
-    }
+    Topology* topology = nullptr;
+    #define X(NAME, ALIAS) \
+        if (strcmp(mobility->name(), #NAME) == 0) { \
+            topology = new TopologyParallel<F, MobilityType::ALIAS>(system, force, mobility, topolparams); \
+        } else
+        EXADIS_MOBILITY_GLOBAL_LIST
+        {
+            ExaDiS_fatal("Error: invalid mobility type = %s for TopologyParallel binding\n", mobility->name());
+        }
+    #undef X
     return topology;
 }
 
