@@ -11,13 +11,13 @@
 #ifndef EXADIS_H
 #define EXADIS_H
 
-#define EXADIS_VERSION "0.1"
+#define EXADIS_VERSION "0.2"
 
 #include <Kokkos_Core.hpp>
 
 #ifdef MPI
 #include <mpi.h>
-#error "Does not support MPI yet"
+#error "This branch does not support MPI"
 #endif
 
 #include <vector>
