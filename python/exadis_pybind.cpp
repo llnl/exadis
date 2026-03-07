@@ -1173,6 +1173,8 @@ PYBIND11_MODULE(pyexadis, m) {
               if (!fn) throw py::value_error("Unknown mobility name: " + name);
               return (*fn)(params, mobparams);
           }, py::arg("name"), py::arg("params"), py::arg("mobparams"), "Instantiate a mobility by name");
+    m.def("make_mobility_python", &make_mobility_python, "Instantiate a python-based mobility model",
+          py::arg("params"), py::arg("mobility"));
     
     m.def("compute_mobility", &compute_mobility, "Wrapper to compute nodal velocities",
           py::arg("net"), py::arg("mobility"), py::arg("nodeforces"), py::arg("nodetags")=std::vector<NodeTag>());
