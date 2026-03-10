@@ -354,6 +354,10 @@ public:
         if (active == SERIAL_ACTIVE) return s_network->number_of_segs();
         else return d_network->Nsegs_local;
     }
+    inline Cell get_cell() {
+        if (active == SERIAL_ACTIVE) return s_network->cell;
+        else return d_network->cell;
+    }
     
     ~DisNetManager() {
         if (s_network) delete s_network;

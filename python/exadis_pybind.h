@@ -200,7 +200,7 @@ struct ExaDisNet {
     int number_of_segs() { return system->Nsegs_total(); }
     bool is_sane() { return system->get_serial_network()->sanity_check(); }
     
-    Cell get_cell() { return system->get_serial_network()->cell; }
+    Cell get_cell() { return system->net_mngr->get_cell(); }
     std::vector<std::vector<double> > get_nodes_array() { return system->get_serial_network()->get_nodes_array(); }
     std::vector<std::vector<double> > get_segs_array() { return system->get_serial_network()->get_segs_array(); }
     std::vector<Vec3> get_forces() { return ExaDiS::pybind::get_forces(system); }
