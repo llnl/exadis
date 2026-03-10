@@ -195,34 +195,27 @@ public:
         double a = system->params.a;
         
         // Parse the network into its physical links
-        std::vector<std::vector<int> > links = network->physical_links();
+        SerialDisNet::DisLinks links = network->physical_links();
         
         // Loop through the links and remove loops that have 4 or
         // less nodes and whose length is less than some criterion
         double minlength = fmax(fmax(1.5*minseg, 2.0*rann), 2.0*a);
         
         int nrem = 0;
-        for (int i = 0; i < links.size(); i++) {
-            if (links[i].size() <= 1 || links[i].size() > 4) continue;
+        for (int i = 0; i < links.number_of_links; i++) {
+            if (links.links_segs[i].size() <= 1 || links.links_segs[i].size() > 4) continue;
             double length = 0.0;
-            for (int j = 0; j < links[i].size(); j++)
-                length += network->seg_length(links[i][j]);
+            for (int j = 0; j < links.links_segs[i].size(); j++)
+                length += network->seg_length(links.links_segs[i][j]);
             if (length > minlength) continue;
             
             // Make sure it is a loop
-            int s1 = links[i][0];
-            int n11 = network->segs[s1].n1;
-            int n12 = network->segs[s1].n2;
-            int n1 = (!network->discretization_node(n11)) ? n11 : n12;
-            int s2 = links[i][links[i].size()-1];
-            int n21 = network->segs[s2].n1;
-            int n22 = network->segs[s2].n2;
-            int n2 = (!network->discretization_node(n21)) ? n21 : n22;
-                
+            int n1 = links.links_nodes[i].front();
+            int n2 = links.links_nodes[i].back();
             if (n1 == n2) {
                 // Zero-out Burgers vectors to remove the loop
-                for (int j = 0; j < links[i].size(); j++)
-                    network->segs[links[i][j]].burg = Vec3(0.0);
+                for (int j = 0; j < links.links_segs[i].size(); j++)
+                    network->segs[links.links_segs[i][j]].burg = Vec3(0.0);
                 nrem++;
             }
         }

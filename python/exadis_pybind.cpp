@@ -950,7 +950,7 @@ PYBIND11_MODULE(pyexadis, m) {
         .def("_add_seg", (void (SerialDisNet::*)(int, int, const Vec3&, const Vec3&)) &SerialDisNet::add_seg,
              "Add segment (n1,n2,burg[,plane]) to the network", py::arg("n1"), py::arg("n2"), py::arg("burg"), py::arg("plane")=Vec3(0.0))
         .def("move_node", &SerialDisNet::move_node)
-        .def("split_seg", &SerialDisNet::split_seg)
+        .def("split_seg", &SerialDisNet::split_seg, py::arg("seg_index"), py::arg("new_pos"), py::arg("update_conn")=true)
         .def("split_node", &SerialDisNet::split_node)
         .def("merge_nodes", &SerialDisNet::merge_nodes)
         .def("merge_nodes_position", &SerialDisNet::merge_nodes_position)
@@ -959,6 +959,12 @@ PYBIND11_MODULE(pyexadis, m) {
         .def("purge_network", &SerialDisNet::purge_network)
         .def("update", &SerialDisNet::update, "Update network memory after modifications");
     
+    py::class_<SerialDisNet::DisLinks>(m, "DisLinks")
+        .def_readwrite("number_of_links", &SerialDisNet::DisLinks::number_of_links)
+        .def_readwrite("links_segs", &SerialDisNet::DisLinks::links_segs)
+        .def_readwrite("links_nodes", &SerialDisNet::DisLinks::links_nodes)
+        .def_readwrite("segs_link", &SerialDisNet::DisLinks::segs_link);
+
     py::class_<ExaDisNet>(m, "ExaDisNet")
         .def(py::init<>())
         .def(py::init<Cell&, std::vector<std::vector<double> >&, std::vector<std::vector<double> >&>(),

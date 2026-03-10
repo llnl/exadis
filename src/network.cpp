@@ -410,15 +410,16 @@ void SerialDisNet::purge_network()
 /*---------------------------------------------------------------------------
  *
  *    Function:     SerialDisNet::physical_links()
- *                  Returns the list of segments belonging to each physical
+ *                  Returns the list of nodes and segments belonging to each
  *                  dislocation link (lines connecting physical nodes).
  *                  The network is decomposed by using a hybrid depth /
  *                  breadth first search graph traversal algorithm.
  *
  *-------------------------------------------------------------------------*/
-std::vector<std::vector<int> > SerialDisNet::physical_links()
+SerialDisNet::DisLinks SerialDisNet::physical_links()
 {
-    std::vector<std::vector<int> > seglinks;
+    DisLinks dislinks;
+    dislinks.segs_link.resize(number_of_segs());
     std::vector<int> visited(number_of_nodes(), -1);
     
     // Loop over the main component of the graph
@@ -426,6 +427,7 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
     int np = 0;
     int nl = 0;
     std::vector<int> curlink;
+    std::vector<int> curnode;
     for (int n = 0; n < number_of_nodes(); n++) {
         if (discretization_node(n)) continue;
         int ni;
@@ -442,12 +444,17 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
             int il = conn[n].seg[k];
             if (visited[nn] == -1) {
                 curlink.push_back(il);
+                curnode.push_back(n);
+                curnode.push_back(nn);
+                dislinks.segs_link[il] = nl;
                 int prev = n;
                 if (!discretization_node(nn)) {
                     np++;
                     nni = np-1;
-                    seglinks.push_back(curlink);
+                    dislinks.links_segs.push_back(curlink);
                     curlink.clear();
+                    dislinks.links_nodes.push_back(curnode);
+                    curnode.clear();
                     nl++;
                     visited[nn] = nni;
                 } else {
@@ -463,6 +470,8 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
                         }
                     }
                     curlink.push_back(ilp);
+                    curnode.push_back(nn);
+                    dislinks.segs_link[ilp] = nl;
                     if (!discretization_node(nn)) {
                         if (visited[nn] == -1) {
                             np++;
@@ -471,8 +480,10 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
                         } else {
                             nni = visited[nn];
                         }
-                        seglinks.push_back(curlink);
+                        dislinks.links_segs.push_back(curlink);
                         curlink.clear();
+                        dislinks.links_nodes.push_back(curnode);
+                        curnode.clear();
                         nl++;
                     } else {
                         visited[nn] = 1;
@@ -482,8 +493,13 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
                 nni = visited[nn];
                 if (!discretization_node(nn) && nn > n) {
                     curlink.push_back(il);
-                    seglinks.push_back(curlink);
+                    dislinks.links_segs.push_back(curlink);
                     curlink.clear();
+                    curnode.push_back(n);
+                    curnode.push_back(nn);
+                    dislinks.links_nodes.push_back(curnode);
+                    curnode.clear();
+                    dislinks.segs_link[il] = nl;
                     nl++;
                 } else if (nn == n) {
                     #if 0
@@ -495,7 +511,7 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
         }
         if (selfconn) {
             ExaDiS_log("Error: self connection error for node %d\n", n);
-            return std::vector<std::vector<int> >();
+            return DisLinks();
         }
     }
     
@@ -505,10 +521,13 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
             np++;
             int ni = np-1;
             visited[n] = ni;
+            curnode.push_back(n);
             int prev = n;
             int nn = conn[n].node[0];
             int il = conn[n].seg[0];
             curlink.push_back(il);
+            curnode.push_back(nn);
+            dislinks.segs_link[il] = nl;
             while (nn != n) {
                 visited[nn] = 1;
                 for (int l = 0; l < conn[nn].num; l++) {
@@ -520,14 +539,19 @@ std::vector<std::vector<int> > SerialDisNet::physical_links()
                     }
                 }
                 curlink.push_back(ilp);
+                curnode.push_back(nn);
+                dislinks.segs_link[ilp] = nl;
             }
-            seglinks.push_back(curlink);
+            dislinks.links_segs.push_back(curlink);
             curlink.clear();
+            dislinks.links_nodes.push_back(curnode);
+            curnode.clear();
             nl++;
         }
     }
     
-    return seglinks;
+    dislinks.number_of_links = (int)dislinks.links_segs.size();
+    return dislinks;
 }
 
 /*---------------------------------------------------------------------------
@@ -581,7 +605,7 @@ void SerialDisNet::write_data(std::string filename)
 
     fprintf(fp, "dataDecompType = 2\n");
     fprintf(fp, "dataDecompGeometry = [\n 1\n 1\n 1\n ]\n\n");
-    
+
     fprintf(fp, "#\n#  END OF DATA FILE PARAMETERS\n#\n\n");
 
     fprintf(fp, "domainDecomposition = \n");

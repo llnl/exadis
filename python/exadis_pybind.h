@@ -214,7 +214,7 @@ struct ExaDisNet {
     Crystal* get_crystal() { return &system->crystal; }
     SerialDisNet* get_serial_network() { return system->get_serial_network(); }
     
-    std::vector<std::vector<int> > physical_links() { return system->get_serial_network()->physical_links(); }
+    SerialDisNet::DisLinks physical_links() { return system->get_serial_network()->physical_links(); }
     
     void write_data(std::string filename) { system->get_serial_network()->write_data(filename); }
 };

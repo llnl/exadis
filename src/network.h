@@ -455,7 +455,12 @@ public:
         refresh_tags();
     }
     
-    std::vector<std::vector<int> > physical_links();
+    struct DisLinks {
+        int number_of_links = 0;
+        std::vector<std::vector<int>> links_segs, links_nodes;
+        std::vector<int> segs_link;
+    };
+    DisLinks physical_links();
     
     double dislocation_density(double burgmag);
     void write_data(std::string filename);
