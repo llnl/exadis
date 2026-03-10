@@ -715,6 +715,8 @@ TopologyBind make_topology(std::string topology_mode, Params& params,
             topology = make_topology_parallel<ForceType::DDD_FFT_MODEL>(system, force, mobility, topolparams);
         } else if (forcebind.model == ForceBind::SUBCYCLING_MODEL) {
             topology = make_topology_parallel<ForceType::SUBCYCLING_MODEL>(system, force, mobility, topolparams);
+        } else if (forcebind.model == ForceBind::GLOBAL_MODEL) {
+            topology = make_topology_parallel<ForceType::GLOBAL_MODEL>(system, force, mobility, topolparams);
         } else {
             ExaDiS_fatal("Error: invalid force type for TopologyParallel binding\n");
         }
@@ -794,8 +796,10 @@ CrossSlipBind make_cross_slip(std::string cross_slip_mode, Params& params, Force
             crossslip = new CrossSlipParallel<ForceType::DDD_FFT_MODEL>(system, force);
         } else if (forcebind.model == ForceBind::SUBCYCLING_MODEL) {
             crossslip = new CrossSlipParallel<ForceType::SUBCYCLING_MODEL>(system, force);
+        } else if (forcebind.model == ForceBind::GLOBAL_MODEL) {
+            crossslip = new CrossSlipParallel<ForceType::GLOBAL_MODEL>(system, force);
         } else {
-            ExaDiS_fatal("Error: invalid force type for TopologyParallel binding\n");
+            ExaDiS_fatal("Error: invalid force type for CrossSlipParallel binding\n");
         }
     } else if (cross_slip_mode == "ForceBasedSerial") {  
         crossslip = new CrossSlipSerial(system, force);
