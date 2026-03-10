@@ -282,6 +282,7 @@ class CalForce:
             raise ValueError('Unknown force %s' % force_mode)
             
     def NodeForce(self, N: DisNetManager, state: dict, pre_compute=True) -> dict:
+        if not "applied_stress" in state: raise KeyError('No applied stress found for force calculation')
         applied_stress = state["applied_stress"]
         G = N.get_disnet(ExaDisNet)
         f = self.force.compute_force(G.net, applied_stress=applied_stress, pre_compute=pre_compute)
@@ -363,6 +364,7 @@ class MobilityLaw:
         
     def Mobility(self, N: DisNetManager, state: dict) -> dict:
         G = N.get_disnet(ExaDisNet)
+        if not "nodeforces" in state: raise KeyError('No nodal forces found for mobility calculation')
         f = state["nodeforces"]
         nodetags = state.get("nodeforcetags", np.empty((0,2)))
         if f.size == 0: f, nodetags = np.empty((0,3)), np.empty((0,2))
@@ -509,14 +511,18 @@ class TimeIntegration:
         return state
 
     def Update_EulerForward(self, G: ExaDisNet, state: dict) -> None:
+        if not "nodevels" in state: raise KeyError('No nodal velocities found for time-integration')
         v = state["nodevels"]
         nodetags = state.get("nodeveltags", np.empty((0,2)))
         if v.size == 0: v, nodetags = np.empty((0,3)), np.empty((0,2))
         self.dt = pyexadis.integrate_euler(G.net, params=self.params, dt=self.dt, nodevels=v, nodetags=nodetags)
         
     def Integrate(self, G: ExaDisNet, state: dict) -> None:
+        if not "applied_stress" in state: raise KeyError('No applied stress found for time-integration')
         applied_stress = state["applied_stress"]
+        if not "nodevels" in state: raise KeyError('No nodal velocities found for time-integration')
         v = state["nodevels"]
+        if not "nodeveltags" in state: raise KeyError('No nodal tags found for time-integration')
         nodetags = state["nodeveltags"]
         if v.size == 0: v, nodetags = np.empty((0,3)), np.empty((0,2))
         # update state dictionary if force/mobility are python-based
