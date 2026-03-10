@@ -25,7 +25,7 @@ add_custom_command(
             "-DMOBILITY_HEADERS=${MOBILITY_HEADERS}"
             "-DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
             "-DOUT_FILE=${MOBILITY_LIST_OUT}"
-            -P ${CMAKE_SOURCE_DIR}/cmake/macros/generate_mobility_list.cmake
+            -P ${EXADIS_MACROS_DIR}/generate_mobility_list.cmake
     DEPENDS ${MOBILITY_HEADERS}
     COMMENT "Generating mobility_global_list.h from mobility_*.h registrations"
     VERBATIM

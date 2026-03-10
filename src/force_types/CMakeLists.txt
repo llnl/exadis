@@ -25,7 +25,7 @@ add_custom_command(
             "-DFORCE_HEADERS=${FORCE_HEADERS}"
             "-DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
             "-DOUT_FILE=${FORCE_LIST_OUT}"
-            -P ${CMAKE_SOURCE_DIR}/cmake/macros/generate_force_list.cmake
+            -P ${EXADIS_MACROS_DIR}/generate_force_list.cmake
     DEPENDS ${FORCE_HEADERS}
     COMMENT "Generating force_global_list.h from force_*.h registrations"
     VERBATIM
