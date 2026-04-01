@@ -764,12 +764,13 @@ int HingeCollisionCriterion(real8 *L1ratio, const real8 *x1t,
     real8 L14 [3]= { x1t[0]-x4t[0], x1t[1]-x4t[1], x1t[2]-x4t[2] };
     real8 A = V3_DOT( L13, L13);
     real8 B = V3_DOT( L14, L14);
+    *L1ratio = V3_DOT( L13, L14) / sqrt(A) / sqrt(B); //Actually returning the cosine angle now
     
     real8 tol = tri ? 0.9 : 0.98;
-    if (V3_DOT( L13, L14) > tol * sqrt(A) * sqrt(B)) {
+    if (*L1ratio > tol) {
         collisionConditionIsMet = 1;
         //Based on the definition of hinge to have a small angle, we approximate the L1ratio as simply the ratio of length. 
-        *L1ratio = sqrt( A / B );
+        //*L1ratio = sqrt( A / B );
     }
     return collisionConditionIsMet;
 }
@@ -1687,8 +1688,7 @@ void CollisionRetroactive::retroactive_collision(System* system)
                                                                  &pold3[0],&p3[0],&pold3[0],&p3[0]);
                 */
                 int collisionConditionIsMet = HingeCollisionCriterion(&L1,&p1[0],&p3[0],&p4[0]);
-                
-                if (!collisionConditionIsMet) {
+                if (!collisionConditionIsMet && L1 > 0.0) {
                     // No collision in the past, look for a possible collision in the future....
                     Vec3 pnext1 = p1 + dt * network->nodes[i].v;
                     Vec3 pnext3 = p3 + dt * network->nodes[n3].v;
@@ -2162,7 +2162,7 @@ void CollisionRetroactive::retroactive_collision_parallel(System* system)
                                                                  &pold3[0],&p3[0],&pold3[0],&p3[0]);
                 */
                 int collisionConditionIsMet = HingeCollisionCriterion(&L1,&p1[0],&p3[0],&p4[0],tri);
-                if (!collisionConditionIsMet) {
+                if (!collisionConditionIsMet && L1 > 0.0) {
                     // No collision in the past, look for a possible collision in the future....
                     Vec3 pnext1 = p1 + dt * network->nodes[i].v;
                     Vec3 pnext3 = p3 + dt * network->nodes[n3].v;
