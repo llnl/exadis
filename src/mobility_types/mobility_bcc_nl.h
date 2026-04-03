@@ -42,6 +42,7 @@ struct MobilityBCC_nl
         double PeierlsTATasym = 0.0; // unitless
         double B0edge         = 0.0; // Pa.s
         double B1edge         = 7.7e-7; // Pa.s/K
+        double Bclimb         = 3.0e-1; // Pa.s
         double tempK          = 300.0; // K
         double vmax           = -1.0; // m/s
         Params() = default;
@@ -55,6 +56,7 @@ struct MobilityBCC_nl
                 else if (name == "PeierlsTATasym") PeierlsTATasym = dict::get_val<double>(val);
                 else if (name == "B0edge") B0edge = dict::get_val<double>(val);
                 else if (name == "B1edge") B1edge = dict::get_val<double>(val);
+                else if (name == "Bclimb") Bclimb = dict::get_val<double>(val);
                 else if (name == "tempK") tempK = dict::get_val<double>(val);
                 else if (name == "vmax") vmax = dict::get_val<double>(val);
                 else ExaDiS_fatal("Error: unknown MobilityBCC_nl input parameter %s\n", name.c_str());
@@ -107,7 +109,7 @@ struct MobilityBCC_nl
         double fout, dfdv, dfdvlin;
         FscaleEdge(system, vmag, burg, fout, dfdv, dfdvlin);
 
-        double Beclimb = dfdvlin * 1.0e+03;
+        double Beclimb = params.Bclimb;
         double Beline = dfdvlin * 1.0e-03;
         
         dfedragdv = Beclimb * outer(climbdir, climbdir) 
@@ -161,6 +163,8 @@ struct MobilityBCC_nl
         double ftherm = alpha * (pow(ratio+v0, beta) - pow(v0, beta1));
         double dfthermdv = alpha * beta * factor110 / c0p * pow(ratio+v0, beta-1.0);
         double fdrag = bzero * vmag / taus;
+        double fmax = 1e20; // prevent blow-up
+        fdrag = (fdrag*fmax)/(fdrag+fmax);
         double dfdragdv = bzero * factor110 / taus;
         double fdragtherm = pow(pow(fdrag, n)+pow(ftherm, n), ninv);
         double dfdragtherm = pow(pow(fdrag, n)+pow(ftherm, n), ninv-1.0);
