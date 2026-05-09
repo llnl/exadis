@@ -49,6 +49,8 @@ except ImportError:
 from enum import IntEnum
 class NodeConstraints(IntEnum):
     UNCONSTRAINED = 0
+    CORNER_NODE = 1
+    SURFACE_NODE = 6
     PINNED_NODE = 7
 
 try:
@@ -253,10 +255,36 @@ class CalForce:
                                                                    drift=drift, flong_group0=flong_group0)
             self.force = pyexadis.Force.SUBCYCLING_MODEL.make(params=self.params, fparams=subcyclparams, cell=cell)
             
+        elif self.force_mode == 'GLOBAL_MODEL':
+            cell = get_module_arg('CalForce::'+self.force_mode, kwargs, 'cell')
+            if not isinstance(cell, pyexadis.Cell):
+                cell = pyexadis.Cell(h=cell.h, origin=cell.origin, is_periodic=cell.is_periodic)
+            force_list = get_module_arg('CalForce::'+self.force_mode, kwargs, 'force_list')
+            if len(force_list) == 0:
+                raise ValueError("CalForce::GLOBAL_MODEL: empty list of forces")
+            fparams = {}
+            for key, val in force_list.items():
+                if key in ['FORCE_LINE_TENSION', 'FORCE_CORE_SELF_PKEXT']:
+                    fparams[key] = pyexadis.Force.CORE_SELF_PKEXT.Params(**val)
+                elif key == 'FORCE_COREMD_SELF_PKEXT':
+                    fparams[key] = pyexadis.Force.COREMD_SELF_PKEXT.Params(**val)
+                elif key == 'FORCE_SEGSEG_ISO':
+                    fparams[key] = pyexadis.Force.SEGSEG_ISO.Params(**val)
+                elif key == 'FORCE_SEGSEG_ISO_FFT':
+                    fparams[key] = pyexadis.Force.SEGSEG_ISO_FFT.Params(**val)
+                elif key in ['FORCE_LONG_FFT_SHORT_ISO', 'FORCE_FFT']:
+                    fparams[key] = pyexadis.Force.ForceFFT.Params(**val)
+                elif key in ['FORCE_N2_ISO']:
+                    fparams[key] = pyexadis.Force.BRUTE_FORCE_N2.Params(**val)
+                else:
+                    raise ValueError(f"CalForce::GLOBAL_MODEL: unknown force contribution '{key}'")
+            self.force = pyexadis.Force.GLOBAL_MODEL.make(params=self.params, fparams=fparams, cell=cell)
+            
         else:
             raise ValueError('Unknown force %s' % force_mode)
             
     def NodeForce(self, N: DisNetManager, state: dict, pre_compute=True) -> dict:
+        if not "applied_stress" in state: raise KeyError('No applied stress found for force calculation')
         applied_stress = state["applied_stress"]
         G = N.get_disnet(ExaDisNet)
         f = self.force.compute_force(G.net, applied_stress=applied_stress, pre_compute=pre_compute)
@@ -326,70 +354,19 @@ class MobilityLaw:
     def __init__(self, state: dict, mobility_law: str='SimpleGlide', **kwargs) -> None:
         self.mobility_law = mobility_law
         params = get_exadis_params(state)
-        
-        if self.mobility_law in ['SimpleGlide', 'GLIDE']:
-            Medge = kwargs.get('Medge', -1.0)
-            Mscrew = kwargs.get('Mscrew', -1.0)
-            if Medge > 0.0 and Mscrew > 0.0:
-                mobparams = pyexadis.Mobility_GLIDE_Params(Medge, Mscrew)
-            else:
-                mob = kwargs.get('mob', 1.0)
-                mobparams = pyexadis.Mobility_GLIDE_Params(mob)
-            self.mobility = pyexadis.make_mobility_glide(params=params, mobparams=mobparams)
-            
-        elif self.mobility_law == 'BCC_0B':
-            Medge = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Medge')
-            Mscrew = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mscrew')
-            Mclimb = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mclimb')
-            Fedge = kwargs.get('Fedge', 0.0)
-            Fscrew = kwargs.get('Fscrew', 0.0)
-            vmax = kwargs.get('vmax', -1.0)
-            mobparams = pyexadis.Mobility_BCC_0B_Params(Medge, Mscrew, Mclimb, Fedge, Fscrew, vmax)
-            self.mobility = pyexadis.make_mobility_bcc_0b(params=params, mobparams=mobparams)
-            
-        elif self.mobility_law == 'BCC_NL':
-            tempK = kwargs.get('tempK', 300.0)
-            vmax = kwargs.get('vmax', -1.0)
-            Peierls = kwargs.get('Peierls', 1.2e9)
-            Bscrew = kwargs.get('Bscrew', 4.6e-4)
-            B0edge = kwargs.get('B0edge', 0.0)
-            B1edge = kwargs.get('B1edge', 7.7e-7)
-            mobparams = pyexadis.Mobility_BCC_NL_Params(tempK, vmax, Peierls, Bscrew, B0edge, B1edge)
-            self.mobility = pyexadis.make_mobility_bcc_nl(params=params, mobparams=mobparams)
-            
-        elif self.mobility_law == 'FCC_0':
-            Medge = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Medge')
-            Mscrew = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mscrew')
-            vmax = kwargs.get('vmax', -1.0)
-            mobparams = pyexadis.Mobility_FCC_0_Params(Medge, Mscrew, vmax)
-            self.mobility = pyexadis.make_mobility_fcc_0(params=params, mobparams=mobparams)
-            
-        elif self.mobility_law == 'FCC_0_FRIC':
-            Medge = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Medge')
-            Mscrew = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mscrew')
-            Fedge = kwargs.get('Fedge', 0.0)
-            Fscrew = kwargs.get('Fscrew', 0.0)
-            vmax = kwargs.get('vmax', -1.0)
-            mobility_field = kwargs.get('mobility_field', "")
-            friction_field = kwargs.get('friction_field', "")
-            mobparams = pyexadis.Mobility_FCC_0_FRIC_Params(Medge, Mscrew, Fedge, Fscrew, vmax,
-                                                            mobility_field, friction_field)
-            self.mobility = pyexadis.make_mobility_fcc_0_fric(params=params, mobparams=mobparams)
-            
-        elif self.mobility_law == 'FCC_0B':
-            Medge = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Medge')
-            Mscrew = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mscrew')
-            Mclimb = get_module_arg('MobilityLaw::'+self.mobility_law, kwargs, 'Mclimb')
-            Mclimbjunc = kwargs.get('Mclimbjunc', -1.0)
-            vmax = kwargs.get('vmax', -1.0)
-            mobparams = pyexadis.Mobility_FCC_0B_Params(Medge, Mscrew, Mclimb, Mclimbjunc, vmax)
-            self.mobility = pyexadis.make_mobility_fcc_0b(params=params, mobparams=mobparams)
-            
-        else:
-            raise ValueError('Unknown mobility law %s' % mobility_law)
+        mobparams = kwargs
+
+        # backward compatibility
+        if mobility_law == 'SimpleGlide':
+            mobility_law = 'GLIDE'
+            if not kwargs: mobparams = {"Mglide": 1.0}
+            if "mob" in mobparams: mobparams = {"Mglide": mobparams["mob"]}
+
+        self.mobility = pyexadis.make_mobility(name=mobility_law, params=params, mobparams=mobparams)
         
     def Mobility(self, N: DisNetManager, state: dict) -> dict:
         G = N.get_disnet(ExaDisNet)
+        if not "nodeforces" in state: raise KeyError('No nodal forces found for mobility calculation')
         f = state["nodeforces"]
         nodetags = state.get("nodeforcetags", np.empty((0,2)))
         if f.size == 0: f, nodetags = np.empty((0,3)), np.empty((0,2))
@@ -536,14 +513,18 @@ class TimeIntegration:
         return state
 
     def Update_EulerForward(self, G: ExaDisNet, state: dict) -> None:
+        if not "nodevels" in state: raise KeyError('No nodal velocities found for time-integration')
         v = state["nodevels"]
         nodetags = state.get("nodeveltags", np.empty((0,2)))
         if v.size == 0: v, nodetags = np.empty((0,3)), np.empty((0,2))
         self.dt = pyexadis.integrate_euler(G.net, params=self.params, dt=self.dt, nodevels=v, nodetags=nodetags)
         
     def Integrate(self, G: ExaDisNet, state: dict) -> None:
+        if not "applied_stress" in state: raise KeyError('No applied stress found for time-integration')
         applied_stress = state["applied_stress"]
+        if not "nodevels" in state: raise KeyError('No nodal velocities found for time-integration')
         v = state["nodevels"]
+        if not "nodeveltags" in state: raise KeyError('No nodal tags found for time-integration')
         nodetags = state["nodeveltags"]
         if v.size == 0: v, nodetags = np.empty((0,3)), np.empty((0,2))
         # update state dictionary if force/mobility are python-based
@@ -694,6 +675,7 @@ class SimulateNetwork:
         self.restart = kwargs.get("restart", None)
         
         self.num_steps = kwargs.get('num_steps', None)
+        self.max_strain = kwargs.get('max_strain', None)
         
         self.exadis_plastic_strain = exadis_plastic_strain
         state["Etot"] = np.zeros(6)
@@ -716,13 +698,8 @@ class SimulateNetwork:
     def save_old_nodes(self, N: DisNetManager, state: dict):
         """save_old_nodes: save current nodal positions
         """
-        if self.exadis_plastic_strain:
-            # if exadis is calculating plastic strain (much faster)
-            # then we don't need to save positions here
-            state["oldnodes_dict"] = None
-        else:
-            # TO DO: get_nodes_data() function from DisNetManager
-            state["oldnodes_dict"] = N.get_disnet(ExaDisNet).get_nodes_data()
+        # TO DO: get_nodes_data() function from DisNetManager
+        state["oldnodes_dict"] = N.get_disnet(ExaDisNet).get_nodes_data()
         return state
     
     def plastic_strain(self, N: DisNetManager, state: dict):
@@ -811,9 +788,12 @@ class SimulateNetwork:
         
         if self.rotation:
             from scipy.spatial.transform import Rotation
-            R = Rotation.from_euler('xyz', np.array([1.,-1.,1.])*dWp).as_matrix()
-            edir = np.matmul(R, state["edir"])
+            Rspin = Rotation.from_euler('xyz', np.array([1.,-1.,1.])*dWp).as_matrix()
+            edir = np.matmul(Rspin, state["edir"])
             state["edir"] = edir / np.linalg.norm(edir)
+            # Rotate stress
+            S = np.array(state["applied_stress"][[0,5,4,5,1,3,4,3,2]]).reshape(3,3)
+            state["applied_stress"] = np.matmul(Rspin, np.matmul(S, Rspin.T)).ravel()[[0,4,8,5,2,1]] # xx,yy,zz,yz,xz,xy
         
         if self.loading_mode == 'strain_rate':
             A0 = np.outer(state["edir"], state["edir"])
@@ -898,7 +878,17 @@ class SimulateNetwork:
         
         # Step end
         self.step_end(N, state)
-        
+    
+    def iterate(self, N: DisNetManager, state: dict):
+        """iterate: decide whether to take a next time step or stop the simulation
+        """
+        if self.max_strain is not None:
+            iterate = np.abs(state["strain"]) < self.max_strain
+        else:
+            iterate = self.tstep < self.stop_step
+        if iterate: self.tstep += 1
+        return iterate
+    
     def run(self, N: DisNetManager, state: dict):
         
         if self.restart is not None:
@@ -916,11 +906,11 @@ class SimulateNetwork:
             N.get_disnet(ExaDisNet).write_data(os.path.join(self.write_dir, 'config.0.data'))
         
         # time stepping
-        start_step = state["istep"] if "istep" in state else 0
-        max_step = start_step + self.num_steps if self.num_steps is not None else self.max_step
+        self.tstep = state["istep"] if "istep" in state else 0
+        self.stop_step = self.tstep + self.num_steps if self.num_steps is not None else self.max_step
         
-        for tstep in range(start_step, max_step):
-            state["istep"] = tstep+1
+        while self.iterate(N, state):
+            state["istep"] = self.tstep
             self.step(N, state)
             
         # write results
@@ -944,7 +934,6 @@ class SimulateNetworkPerf(SimulateNetwork):
     def __init__(self, *args, **kwargs) -> None:
         super(SimulateNetworkPerf, self).__init__(*args, **kwargs)
         
-        self.max_strain = kwargs.get('max_strain', None)
         self.max_time = kwargs.get('max_time', None)
         self.max_walltime = kwargs.get('max_walltime', None)
         self.out_props = kwargs.get('out_props', None)
@@ -1058,9 +1047,9 @@ class SimulateNetworkPerf(SimulateNetwork):
         # update state dictionary
         state = driver.update_state(state)
         
-        t1 = time.perf_counter()
-        system.print_timers()
-        print('RUN TIME: %f sec' % (t1-t0))
+        timetot = time.perf_counter()-t0
+        system.print_timers(timetot=timetot)
+        print('RUN TIME: %f sec' % timetot)
         
         return state
         

@@ -11,6 +11,18 @@
 #ifndef EXADIS_NEIGHBOR_BOX_H
 #define EXADIS_NEIGHBOR_BOX_H
 
+// fix miscompilation bug with CUDA 12.6+
+#ifdef __CUDA_ARCH__
+#include <cuda_runtime_api.h>
+#if !defined(CUDART_VERSION) || (CUDART_VERSION >= 12060)
+#define FIX_CUDA_NOINLINE __noinline__
+#else
+#define FIX_CUDA_NOINLINE
+#endif
+#else
+#define FIX_CUDA_NOINLINE
+#endif
+
 #include "neighbor.h"
 
 namespace ExaDiS {
@@ -31,12 +43,12 @@ private:
     Mat33 cellHinv;
     Vec3 cbox[3];
     int pbc[3];
-    int boxDim[3];
     Mat33 binHinv;
     
 public:
     NeiType type;
     double cutoff;
+    int boxDim[3];
     int Nbox_total;
     int N_local;
     
@@ -55,6 +67,12 @@ public:
     template<class N>
     NeighborBox(System* system, N* net, double _cutoff, NeiType _type) {
         build(system, net, _cutoff, _type);
+    }
+
+    template<class N>
+    NeighborBox(System* system, N* net, double _cutoff, T_x& _pos) {
+        pos = _pos;
+        build(system, net, _cutoff, NeiPos);
     }
     
     KOKKOS_FORCEINLINE_FUNCTION T_box::pointer_type get_head() const { return boxes.data(); }
@@ -85,13 +103,15 @@ public:
         Vec3 p;
         if (_type == NeiNode) {
             p = nodes[i].pos;
-        } else {
+        } else if (_type == NeiSeg) {
             auto segs = net->get_segs();
             int n1 = segs[i].n1;
             int n2 = segs[i].n2;
             Vec3 r1 = nodes[n1].pos;
             Vec3 r2 = cell.pbc_position(r1, nodes[n2].pos);
             p = 0.5*(r1+r2);
+        } else {
+            p = pos(i);
         }
         return cell.pbc_fold(p);
     }
@@ -163,8 +183,10 @@ public:
         Kokkos::deep_copy(boxes, -1);
         Kokkos::resize(countBox, Nbox_total);
         
-        // Find box for each node/seg
-        N_local = (type == NeiNode) ? net->Nnodes_local : net->Nsegs_local;
+        // Find box for each node/seg/pos
+        if (type == NeiNode) N_local = net->Nnodes_local;
+        else if (type == NeiSeg) N_local = net->Nsegs_local;
+        else N_local = pos.extent(0);
         
         Kokkos::resize(nextInBox, N_local);
         Kokkos::deep_copy(nextInBox, -1);
@@ -201,6 +223,7 @@ public:
         return nei_box;
     }
     
+    FIX_CUDA_NOINLINE // fix miscompilation bug with CUDA 12.6+
     KOKKOS_INLINE_FUNCTION
     int neighbor_box_index(const Vec3i& id, int ib, Vec3& delta_pbc) const
     {
@@ -393,9 +416,12 @@ public:
     template<class N>
     void build_neighbor_list(System* system, N* net, NeighborList* neilist, NeiType idtype, bool strict, bool use_subset, T_box& id)
     {
-        int Ntype_local = (idtype == NeiNode) ? net->Nnodes_local : net->Nsegs_local;
-        int Nid = Ntype_local;
+        int Ntype_local;
+        if (idtype == NeiNode) Ntype_local = net->Nnodes_local;
+        else if (idtype == NeiSeg) Ntype_local = net->Nsegs_local;
+        else Ntype_local = pos.extent(0);
         
+        int Nid = Ntype_local;
         if (use_subset) {
             Nid = id.extent(0);
         }

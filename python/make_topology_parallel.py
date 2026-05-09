@@ -20,4 +20,6 @@ else:
     filename = 'topology_%s.cpp' % arg
     with open(filename, 'w') as f:
         f.write('#include "exadis_pybind.h"\n')
+        f.write('namespace ExaDiS { namespace pybind {\n')
         f.write('template Topology* make_topology_parallel<ForceType::%s>(System* system, Force* force, Mobility* mobility, TParams& topolparams);\n' % arg)
+        f.write('}}\n')

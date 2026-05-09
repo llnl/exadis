@@ -110,7 +110,7 @@ public:
     TimerAccessor timer;
     DevTimerAccessor devtimer;
     int add_timer(std::string label) { return devtimer.sysdevtimers->add_timer(label); }
-    void print_timers(bool dev=false);
+    void print_timers(double timetot=-1.0, bool dev=false);
 };
 
 System* make_system(SerialDisNet* net, Crystal crystal=Crystal(), Params params=Params());

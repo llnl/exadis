@@ -34,7 +34,7 @@
 #include <any>
 #include <sstream>
 
-#define OPREC_VERSION "1.0"
+#define OPREC_VERSION "1.1"
 
 namespace ExaDiS {
 
@@ -46,6 +46,7 @@ namespace ExaDiS {
 struct OpRec {
     
     enum OpTypes {
+        INITIALIZE,
         TIME_INTEGRATE,
         PLASTIC_STRAIN,
         MOVE_NODE,
@@ -58,6 +59,21 @@ struct OpRec {
     };
     
     typedef std::any OpAny;
+    
+    struct Initialize {
+        double version; std::string commname; Vec3i ndom;
+        Initialize(const char* _commname, Vec3i _ndom) : commname(_commname), ndom(_ndom) {}
+        Initialize(char* line) {
+            int type; char buffer[100];
+            sscanf(line, "%d %lf %99s %d %d %d",
+                   &type, &version, buffer, &ndom.x, &ndom.y, &ndom.z);
+            commname = std::string(buffer);
+        }
+        inline void write(FILE* fp) {
+            fprintf(fp, "%d %s %s %d %d %d\n",
+                    INITIALIZE, OPREC_VERSION, commname.c_str(), ndom.x, ndom.y, ndom.z);
+        }
+    };
     
     struct TimeIntegrate {
         int rec_pos; double dt;

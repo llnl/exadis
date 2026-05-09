@@ -22,7 +22,7 @@ namespace ExaDiS {
  *-------------------------------------------------------------------------*/
 class Neighbor {
 public:
-    enum NeiType {NeiNode, NeiSeg};
+    enum NeiType {NeiNode, NeiSeg, NeiPos};
     
     Neighbor() {}
     Neighbor(System *system) {}

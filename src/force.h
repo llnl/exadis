@@ -11,6 +11,11 @@
 #ifndef EXADIS_FORCE_H
 #define EXADIS_FORCE_H
 
+// Used to register force class and alias
+#ifndef EXADIS_FORCE
+#define EXADIS_FORCE(Type, Alias)
+#endif
+
 #include "system.h"
 
 namespace ExaDiS {
@@ -80,10 +85,13 @@ public:
 class ForceCollection : public Force {
 private:
     std::vector<Force*> forces;
+    bool free_on_delete = true;
 
 public:
-    ForceCollection(System *system, std::vector<Force*> forcelist) {
+    ForceCollection(System *system, std::vector<Force*> forcelist,
+                    bool _free_on_delete=true) {
         forces = forcelist;
+        free_on_delete = _free_on_delete;
     }
     
     void pre_compute(System *system) {
@@ -106,8 +114,10 @@ public:
     }
     
     ~ForceCollection() {
-        for (auto force : forces)
-            if (force) delete force;
+        if (free_on_delete) {
+            for (auto force : forces)
+                exadis_delete(force);
+        }
     }
     
     const char* name() {
@@ -451,13 +461,8 @@ public:
 } // namespace ExaDiS
 
 
-// Available force types
+// Base force types
 #include "force_common.h"
-#include "force_iso.h"
-#include "force_core.h"
-#include "force_lt.h"
-#include "force_n2.h"
-#include "force_segseglist.h"
-#include "force_fft.h"
+#include "force_global.h"
 
 #endif

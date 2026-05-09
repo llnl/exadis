@@ -188,7 +188,15 @@ def main():
     args = parser.parse_args()
     
     build_path = args.build_path
+    if build_path == "../../build" and not os.path.isdir(build_path):
+        build_path = "../../../../build/core/exadis"
+    if not os.path.isdir(build_path):
+        print(f"{FONT_RED}ERROR: exadis build path ({build_path}) does not exist. Some tests will fail. {FONT_RESET}")
     tests_path = os.path.join(build_path, 'tests/unit_tests')
+    if not os.path.isdir(tests_path):
+        print(f"{FONT_RED}ERROR: exadis tests path ({tests_path}) does not exist. Some tests will fail. " \
+        f"Make sure the code was compiled with option '-DEXADIS_BUILD_TESTS=On'. {FONT_RESET}")
+    
     vis = VisualizeExample(not args.noplot)
     
     # Define test cases (test_name, command, expected_output)
@@ -214,6 +222,7 @@ def main():
         ("Test_Force_FFT_CPP", [f"{tests_path}/test_force", "fft"], "expected_output/test_force_fft.dat", None),
         ("Test_Force_FFT_SerialDisNet_CPP", [f"{tests_path}/test_force", "fft_serialdisnet"], "expected_output/test_force_fft.dat", None),
         
+        ("Test_Neighbor_NeighborList_CPP", [f"{tests_path}/test_neighbor", "test_neighborlist"], [22330, 44362, 78780, 298786, 673446, 3609540], None),
         ("Test_Neighbor_SegSegList_CPP", [f"{tests_path}/test_neighbor", "test_segseglist"], [4171, 11436, 22158, 105147, 259015, 1549038], None),
         ("Test_Neighbor_SubGroups_CPP", [f"{tests_path}/test_neighbor", "test_subgroups"], [247266, 0, 752, 3221, 10696, 232597], None),
         

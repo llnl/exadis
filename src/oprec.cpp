@@ -48,7 +48,9 @@ void OpRec::write_file(std::string oprec_file)
         ExaDiS_fatal("Error: cannot open oprec file %s\n", oprec_file.c_str());
     
     for (const auto& op : ops) {
-        if (op.type() == typeid(TimeIntegrate)) {
+        if (op.type() == typeid(Initialize)) {
+            std::any_cast<Initialize>(op).write(fp);
+        } else if (op.type() == typeid(TimeIntegrate)) {
             std::any_cast<TimeIntegrate>(op).write(fp);
         } else if (op.type() == typeid(PlasticStrain)) {
             std::any_cast<PlasticStrain>(op).write(fp);
@@ -95,6 +97,9 @@ void OpRec::read_file(std::string oprec_file)
         sscanf(line, "%d", &optype);
         
         switch (optype) {
+            case INITIALIZE:
+                ops.push_back(Initialize(line));
+                break;
             case TIME_INTEGRATE:
                 ops.push_back(TimeIntegrate(line));
                 break;
@@ -275,7 +280,23 @@ void ExaDiSApp::oprec_replay(Control& ctrl, std::string oprec_file)
         
             OpRec::OpAny* op = oprec->current();
             
-            if (op->type() == typeid(OpRec::TimeIntegrate))
+            if (op->type() == typeid(OpRec::Initialize))
+            {
+                // Initialize
+                OpRec::Initialize* opcur = std::any_cast<OpRec::Initialize>(op);
+                // Check version
+                if (opcur->version != std::atof(OPREC_VERSION))
+                    ExaDiS_fatal("Error: oprec file version %g is not compatible with oprec version = %g\n",
+                    opcur->version, OPREC_VERSION);
+                /*
+                // Check communication type and layout
+                if (opcur->commname != std::string(system->comm->name()) ||
+                    (system->comm->ndom - opcur->ndom).norm2() > 0)
+                    ExaDiS_fatal("Error: cannot replay with a different communication layout (%s: %d x %d x %d)\n",
+                    opcur->commname.c_str(), opcur->ndom.x, opcur->ndom.y, opcur->ndom.z);
+                */
+            }
+            else if (op->type() == typeid(OpRec::TimeIntegrate))
             {
                 // Time-integration
                 OpRec::TimeIntegrate* opcur = std::any_cast<OpRec::TimeIntegrate>(op);
@@ -396,7 +417,7 @@ void ExaDiSApp::oprec_replay(Control& ctrl, std::string oprec_file)
     
     Kokkos::fence();
     double totaltime = timer.seconds();
-    system->print_timers();
+    system->print_timers(totaltime);
     ExaDiS_log("REPLAY TIME: %f sec\n", totaltime);
 }
 
