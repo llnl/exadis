@@ -36,20 +36,24 @@
 #ifdef EXADIS_PYBIND
     #include <pybind11/pybind11.h>
     namespace py = pybind11;
-    using Dict = py::dict;
-    namespace dict {
-        template<typename T>
-        inline T get_val(const py::handle& obj) { return py::cast<T>(obj); }
-        inline std::string get_key(const py::handle& obj) { return get_val<std::string>(obj); }
+    namespace ExaDiS {
+        using Dict = py::dict;
+        namespace dict {
+            template<typename T>
+            inline T get_val(const py::handle& obj) { return py::cast<T>(obj); }
+            inline std::string get_key(const py::handle& obj) { return get_val<std::string>(obj); }
+        }
     }
 #else
     #include <map>
     #include <any>
-    using Dict = std::map<std::string, std::any>;
-    namespace dict {
-        template<typename T>
-        inline T get_val(const std::any& obj) { return std::any_cast<T>(obj); }
-        inline std::string get_key(const std::string& key) { return key; }
+    namespace ExaDiS {
+        using Dict = std::map<std::string, std::any>;
+        namespace dict {
+            template<typename T>
+            inline T get_val(const std::any& obj) { return std::any_cast<T>(obj); }
+            inline std::string get_key(const std::string& key) { return key; }
+        }
     }
 #endif
 
