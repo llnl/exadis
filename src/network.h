@@ -464,7 +464,7 @@ public:
     DisLinks physical_links();
     
     double dislocation_density(double burgmag);
-    void write_data(std::string filename);
+    void write_data(std::string filename, bool verbose=true);
     
     struct SaveNode {
         int id;

@@ -574,10 +574,12 @@ double SerialDisNet::dislocation_density(double burgmag)
  *                  Export the network in ParaDiS data format
  *
  *-------------------------------------------------------------------------*/
-void SerialDisNet::write_data(std::string filename)
+void SerialDisNet::write_data(std::string filename, bool verbose)
 {
-    ExaDiS_log("Writing configuration in legacy data format\n");
-    ExaDiS_log(" Output file: %s\n", filename.c_str());
+    if (verbose) {
+        ExaDiS_log("Writing configuration in legacy data format\n");
+        ExaDiS_log(" Output file: %s\n", filename.c_str());
+    }
     
     if (conn.empty())
         generate_connectivity();
