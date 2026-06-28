@@ -563,15 +563,15 @@ public:
                         int ky = jb % Ngrid[1]; if (ky < 0) ky += Ngrid[1];
                         int kz = kb % Ngrid[2]; if (kz < 0) kz += Ngrid[2];
                         
-                        Kokkos::atomic_add(&gridval[0](kx, ky, kz), W/Vs*b.x*t.x);
-                        Kokkos::atomic_add(&gridval[1](kx, ky, kz), W/Vs*b.x*t.y);
-                        Kokkos::atomic_add(&gridval[2](kx, ky, kz), W/Vs*b.x*t.z);
-                        Kokkos::atomic_add(&gridval[3](kx, ky, kz), W/Vs*b.y*t.x);
-                        Kokkos::atomic_add(&gridval[4](kx, ky, kz), W/Vs*b.y*t.y);
-                        Kokkos::atomic_add(&gridval[5](kx, ky, kz), W/Vs*b.y*t.z);
-                        Kokkos::atomic_add(&gridval[6](kx, ky, kz), W/Vs*b.z*t.x);
-                        Kokkos::atomic_add(&gridval[7](kx, ky, kz), W/Vs*b.z*t.y);
-                        Kokkos::atomic_add(&gridval[8](kx, ky, kz), W/Vs*b.z*t.z);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[0](kx, ky, kz)), W/Vs*b.x*t.x);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[1](kx, ky, kz)), W/Vs*b.x*t.y);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[2](kx, ky, kz)), W/Vs*b.x*t.z);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[3](kx, ky, kz)), W/Vs*b.y*t.x);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[4](kx, ky, kz)), W/Vs*b.y*t.y);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[5](kx, ky, kz)), W/Vs*b.y*t.z);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[6](kx, ky, kz)), W/Vs*b.z*t.x);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[7](kx, ky, kz)), W/Vs*b.z*t.y);
+                        Kokkos::atomic_add(reinterpret_cast<double*>(&gridval[8](kx, ky, kz)), W/Vs*b.z*t.z);
                     }
                 }
             }
