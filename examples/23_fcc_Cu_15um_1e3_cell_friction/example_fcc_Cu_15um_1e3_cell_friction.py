@@ -60,8 +60,7 @@ def example_fcc_Cu_15um_1e3_cell_friction():
     
     if 1:
         # Initial configuration
-        G = ExaDisNet()
-        G.read_paradis('../22_fcc_Cu_15um_1e3/180chains_16.10e.data')
+        G = ExaDisNet().read_paradis('../22_fcc_Cu_15um_1e3/180chains_16.10e.data')
         net = DisNetManager(G)
         restart = None
     else:
@@ -72,7 +71,7 @@ def example_fcc_Cu_15um_1e3_cell_friction():
     
     calforce  = CalForce(force_mode='SUBCYCLING_MODEL', state=state, Ngrid=64, cell=net.cell, drift=1)
     mobility  = MobilityLaw(mobility_law='FCC_0_FRIC', state=state, Medge=64103.0, Mscrew=64103.0, vmax=4000.0,
-                            Fedge=20e6, Fscrew=20e6, friction_field='friction_field.dat')
+                            Fscale=20e6, friction_field='friction_field.dat')
     timeint   = TimeIntegration(integrator='Subcycling', rgroups=[0.0, 100.0, 600.0, 1600.0], state=state, force=calforce, mobility=mobility)
     collision = Collision(collision_mode='Retroactive', state=state)
     topology  = Topology(topology_mode='TopologyParallel', state=state, force=calforce, mobility=mobility)

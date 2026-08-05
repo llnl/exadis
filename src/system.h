@@ -82,7 +82,7 @@ public:
         devtimer[numdevtimer++].label = label;
         return numdevtimer-1;
     }
-    void print_timers(bool dev=false);
+    void print_timers(double timetot=-1.0, bool dev=false);
 };
 
 System* make_system(SerialDisNet* net, Crystal crystal=Crystal(), Params params=Params());

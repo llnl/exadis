@@ -650,6 +650,8 @@ void ExaDiSApp::initialize(Control& ctrl, bool check_modules)
         system->oprec->activate();
     }
     
+    system->oprec->add_op(OpRec::Initialize("Serial", Vec3i(1)));
+    
     init = true;
     restart = false;
     
@@ -725,7 +727,7 @@ void ExaDiSApp::run(Control& ctrl)
     
     Kokkos::fence();
     double totaltime = timer.seconds();
-    system->print_timers();
+    system->print_timers(totaltime);
     ExaDiS_log("RUN TIME: %f sec\n", totaltime);
 }
 

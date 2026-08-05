@@ -22,6 +22,37 @@
 #define MIN(a,b) (a<b?a:b)
 #define SIGN(a) (a>0?1:(-1*(a<0)))
 
+#ifdef EXADIS_PYBIND
+#define PYBIND_ONLY(...) __VA_ARGS__
+#else
+#define PYBIND_ONLY(...)
+#endif
+
+/*---------------------------------------------------------------------------
+ *
+ *    Helper:       Pybind / C++ Dict type used for binded class parameters
+ *
+ *-------------------------------------------------------------------------*/
+#ifdef EXADIS_PYBIND
+    #include <pybind11/pybind11.h>
+    namespace py = pybind11;
+    using Dict = py::dict;
+    namespace dict {
+        template<typename T>
+        inline T get_val(const py::handle& obj) { return py::cast<T>(obj); }
+        inline std::string get_key(const py::handle& obj) { return get_val<std::string>(obj); }
+    }
+#else
+    #include <map>
+    #include <any>
+    using Dict = std::map<std::string, std::any>;
+    namespace dict {
+        template<typename T>
+        inline T get_val(const std::any& obj) { return std::any_cast<T>(obj); }
+        inline std::string get_key(const std::string& key) { return key; }
+    }
+#endif
+
 namespace ExaDiS {
 
 template <unsigned int error> void print_(const char *format, ...);
@@ -323,6 +354,10 @@ public:
         if (active == SERIAL_ACTIVE) return s_network->number_of_segs();
         else return d_network->Nsegs_local;
     }
+    inline Cell get_cell() {
+        if (active == SERIAL_ACTIVE) return s_network->cell;
+        else return d_network->cell;
+    }
     
     ~DisNetManager() {
         if (s_network) delete s_network;
@@ -367,6 +402,8 @@ namespace Kokkos { //reduction identity must be defined in Kokkos namespace
  *-------------------------------------------------------------------------*/
 #include <Kokkos_Random.hpp>
 
+namespace ExaDiS {
+
 struct RandomGenerator {
     Kokkos::Random_XorShift64_Pool<Kokkos::Serial> random_pool_serial;
     Kokkos::Random_XorShift64_Pool<Kokkos::DefaultExecutionSpace> random_pool_device;
@@ -409,6 +446,8 @@ struct RandomGenerator {
     }
 };
 
+} // namespace ExaDiS
+
 /*---------------------------------------------------------------------------
  *
  *    Struct:       SortView
@@ -420,6 +459,8 @@ struct RandomGenerator {
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
 #endif
+
+namespace ExaDiS {
 
 template <class ExecutionSpace = Kokkos::DefaultExecutionSpace>
 struct SortView
@@ -480,5 +521,7 @@ struct SortViewByKey<Kokkos::Cuda>
     }
 };
 #endif
+
+} // namespace ExaDiS
 
 #endif

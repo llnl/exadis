@@ -161,11 +161,12 @@ public:
         }
         
         // Find glide plane for new segment if it exists
+        Vec3 pnew;
         int cnew = network->find_connection(i, inew);
         if (cnew != -1 && system->crystal.use_glide_planes) {
             int snew = network->conn[i].seg[cnew];
             Vec3 bnew = network->segs[snew].burg;
-            Vec3 pnew = system->crystal.find_precise_glide_plane(bnew, p1-p0);
+            pnew = system->crystal.find_precise_glide_plane(bnew, p1-p0);
             if (pnew.norm2() < 1e-3)
                 pnew = system->crystal.pick_screw_glide_plane(network, bnew);
             network->segs[snew].plane = pnew;
@@ -175,6 +176,8 @@ public:
             NodeTag& tag = network->nodes[i].tag;
             NodeTag& tagnew = network->nodes[inew].tag;
             system->oprec->add_op(OpRec::SplitMultiNode(tag, tagarms, p0, p1, tagnew));
+            if (cnew != -1 && system->crystal.use_glide_planes)
+                system->oprec->add_op(OpRec::UpdateSegPlane(tag, tagnew, pnew));
         }
         
         return inew;

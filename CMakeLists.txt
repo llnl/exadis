@@ -20,9 +20,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 option(Kokkos_ENABLE_SERIAL "Kokkos enable SERIAL" On)
 option(Kokkos_ENABLE_OPENMP "Kokkos enable OPENMP" On)
-option(Kokkos_ENABLE_CUDA "Kokkos enable cuda" Off)
-option(Kokkos_ENABLE_CUDA_LAMBDA "Kokkos enable cuda lambda" Off)
-option(Kokkos_ENABLE_HIP "Kokkos enable hip" Off)
+option(Kokkos_ENABLE_CUDA "Kokkos enable CUDA" Off)
+option(Kokkos_ENABLE_CUDA_LAMBDA "Kokkos enable CUDA LAMBDA" Off)
+option(Kokkos_ENABLE_HIP "Kokkos enable HIP" Off)
+option(Kokkos_ENABLE_SYCL "Kokkos enable SYCL" Off)
 
 if(NOT PROJECT_SOURCE_DIR)
     message(STATUS "ExaDiS standalone build")
@@ -42,7 +43,12 @@ else()
     message(STATUS "CMAKE_PROJECT_NAME: ${CMAKE_PROJECT_NAME}")
 endif()
 
-project(ExaDiS LANGUAGES CXX)
+set(EXADIS_MACROS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros")
+
+project(ExaDiS
+    VERSION 0.2.0
+    LANGUAGES CXX
+)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -100,6 +106,8 @@ set(EXADIS_SUBDIRECTORIES
 
 set(EXADIS_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}/src/force_types
+    ${CMAKE_CURRENT_BINARY_DIR}/src/mobility_types
     ${EXADIS_SUBDIRECTORIES}
     ${FFT_INC_DIR}
 )

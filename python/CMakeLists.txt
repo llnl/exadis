@@ -40,6 +40,7 @@ set(TOPOLOGY_FORCE_TYPES
     "CUTOFF_MODEL"
     "DDD_FFT_MODEL"
     "SUBCYCLING_MODEL"
+    "GLOBAL_MODEL"
 )
 set(TOPOLOGY_TYPES_SOURCES "")
 foreach(TYPE ${TOPOLOGY_FORCE_TYPES})
@@ -58,8 +59,6 @@ add_custom_command(
 )
 add_custom_target(make_topology_parallel DEPENDS topology_parallel_types.h ${TOPOLOGY_TYPES_SOURCES})
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-
 pybind11_add_module(pyexadis exadis_pybind.cpp ${TOPOLOGY_TYPES_SOURCES} ${SOURCES})
 add_dependencies(pyexadis make_topology_parallel)
 target_include_directories(pyexadis PRIVATE
@@ -67,5 +66,24 @@ target_include_directories(pyexadis PRIVATE
     ${PYTHON_DEV_INC_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/../src
 )
 target_link_libraries(pyexadis PRIVATE ${EXADIS_EXTERN_LIBS})
+target_compile_definitions(pyexadis PUBLIC -DEXADIS_PYBIND)
+
+add_dependencies(pyexadis generate_force_list generate_mobility_list)
+
+set(PYEXADIS_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "Directory for the generated pyexadis library")
+set_target_properties(pyexadis PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PYEXADIS_OUTPUT_DIR}")
+
+# Copy pyexadis python files to pyexadis directory
+if(NOT "${PYEXADIS_OUTPUT_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(PYEXADIS_SCRIPTS "pyexadis_base.py" "pyexadis_utils.py")
+    foreach(FILENAME ${PYEXADIS_SCRIPTS})
+        configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/${FILENAME}" 
+            "${PYEXADIS_OUTPUT_DIR}/${FILENAME}" 
+            COPYONLY
+        )
+    endforeach()
+endif()

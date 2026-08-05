@@ -1,6 +1,6 @@
 # ExaDiS
 
-ExaDiS version 0.1
+ExaDiS version 0.2
 
 ExaDiS (Exascale Dislocation Simulator) is a set of software modules written to enable numerical simulations of large groups of moving and interacting dislocations, line defects in crystals responsible for crystal plasticity. By tracking time evolution of sufficiently large dislocation ensembles, ExaDiS predicts plasticity response and plastic strength of crystalline materials.
 

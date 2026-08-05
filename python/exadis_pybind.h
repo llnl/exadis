@@ -19,23 +19,22 @@
 #include <pybind11/numpy.h>
 
 namespace py = pybind11;
-using namespace ExaDiS;
 
 /*---------------------------------------------------------------------------
  *
- *    Struct:        Vec3
+ *    Struct:        type_caster
  *
  *-------------------------------------------------------------------------*/
 namespace pybind11 { namespace detail {
     
-    template <> struct type_caster<Vec3> {
+    template <> struct type_caster<ExaDiS::Vec3> {
     public:
         /*
          * This macro establishes the name 'Vec3' in
          * function signatures and declares a local variable
          * 'value' of type Vec3
          */
-        PYBIND11_TYPE_CASTER(Vec3, _("Vec3"));
+        PYBIND11_TYPE_CASTER(ExaDiS::Vec3, _("Vec3"));
 
         /*
          * Conversion part 1 (Python->C++): convert a PyObject into a Vec3
@@ -60,14 +59,14 @@ namespace pybind11 { namespace detail {
          * ``return_value_policy::reference_internal``) and are generally
          * ignored by implicit casters.
          */
-        static handle cast(Vec3 src, return_value_policy, handle) {
+        static handle cast(ExaDiS::Vec3 src, return_value_policy, handle) {
             return py::make_tuple(src.x, src.y, src.z).release();
         }
     };
     
-    template <> struct type_caster<Vec3i> {
+    template <> struct type_caster<ExaDiS::Vec3i> {
     public:
-        PYBIND11_TYPE_CASTER(Vec3i, _("Vec3i"));
+        PYBIND11_TYPE_CASTER(ExaDiS::Vec3i, _("Vec3i"));
         bool load(handle src, bool) {
             if (!isinstance<sequence>(src)) return false;
             sequence seq = reinterpret_borrow<sequence>(src);
@@ -78,38 +77,38 @@ namespace pybind11 { namespace detail {
             value[2] = seq[2].cast<int>();
             return true;
         }
-        static handle cast(Vec3i src, return_value_policy, handle) {
+        static handle cast(ExaDiS::Vec3i src, return_value_policy, handle) {
             return py::make_tuple(src.x, src.y, src.z).release();
         }
     };
     
-    template <> struct type_caster<Mat33> {
+    template <> struct type_caster<ExaDiS::Mat33> {
     public:
-        PYBIND11_TYPE_CASTER(Mat33, _("Mat33"));
+        PYBIND11_TYPE_CASTER(ExaDiS::Mat33, _("Mat33"));
         bool load(handle src, bool) {
             if (!isinstance<sequence>(src)) return false;
             sequence seq = reinterpret_borrow<sequence>(src);
             if (seq.size() == 3) {
-                value[0] = seq[0].cast<Vec3>();
-                value[1] = seq[1].cast<Vec3>();
-                value[2] = seq[2].cast<Vec3>();
+                value[0] = seq[0].cast<ExaDiS::Vec3>();
+                value[1] = seq[1].cast<ExaDiS::Vec3>();
+                value[2] = seq[2].cast<ExaDiS::Vec3>();
             } else if (seq.size() == 9) {
-                value[0] = Vec3(seq[0].cast<double>(), seq[1].cast<double>(), seq[2].cast<double>());
-                value[1] = Vec3(seq[3].cast<double>(), seq[4].cast<double>(), seq[5].cast<double>());
-                value[2] = Vec3(seq[6].cast<double>(), seq[7].cast<double>(), seq[8].cast<double>());
+                value[0] = ExaDiS::Vec3(seq[0].cast<double>(), seq[1].cast<double>(), seq[2].cast<double>());
+                value[1] = ExaDiS::Vec3(seq[3].cast<double>(), seq[4].cast<double>(), seq[5].cast<double>());
+                value[2] = ExaDiS::Vec3(seq[6].cast<double>(), seq[7].cast<double>(), seq[8].cast<double>());
             } else {
                 throw value_error("Expected sequence of length 9 or 3x3 for Mat33 type");
             }
             return true;
         }
-        static handle cast(Mat33 src, return_value_policy, handle) {
+        static handle cast(ExaDiS::Mat33 src, return_value_policy, handle) {
             return py::make_tuple(src.rowx, src.rowy, src.rowz).release();
         }
     };
     
-    template <> struct type_caster<NodeTag> {
+    template <> struct type_caster<ExaDiS::NodeTag> {
     public:
-        PYBIND11_TYPE_CASTER(NodeTag, _("NodeTag"));
+        PYBIND11_TYPE_CASTER(ExaDiS::NodeTag, _("NodeTag"));
         bool load(handle src, bool) {
             if (!isinstance<sequence>(src)) return false;
             sequence seq = reinterpret_borrow<sequence>(src);
@@ -119,13 +118,14 @@ namespace pybind11 { namespace detail {
             value.index  = seq[1].cast<int>();
             return true;
         }
-        static handle cast(NodeTag src, return_value_policy, handle) {
+        static handle cast(ExaDiS::NodeTag src, return_value_policy, handle) {
             return py::make_tuple(src.domain, src.index).release();
         }
     };
     
 }} // namespace pybind11::detail
 
+namespace ExaDiS { namespace pybind {
 
 /*---------------------------------------------------------------------------
  *
@@ -199,22 +199,23 @@ struct ExaDisNet {
     int number_of_nodes() { return system->Nnodes_total(); }
     int number_of_segs() { return system->Nsegs_total(); }
     bool is_sane() { return system->get_serial_network()->sanity_check(); }
+    void set_cell(Cell& cell) { system->get_serial_network()->cell = cell; }
     
-    Cell get_cell() { return system->get_serial_network()->cell; }
+    Cell get_cell() { return system->net_mngr->get_cell(); }
     std::vector<std::vector<double> > get_nodes_array() { return system->get_serial_network()->get_nodes_array(); }
     std::vector<std::vector<double> > get_segs_array() { return system->get_serial_network()->get_segs_array(); }
-    std::vector<Vec3> get_forces() { return ::get_forces(system); }
-    std::vector<Vec3> get_velocities() { return ::get_velocities(system); }
+    std::vector<Vec3> get_forces() { return ExaDiS::pybind::get_forces(system); }
+    std::vector<Vec3> get_velocities() { return ExaDiS::pybind::get_velocities(system); }
     py::tuple get_plastic_strain() { return py::make_tuple(system->dEp, system->dWp, system->density); }
     
-    void set_positions(std::vector<Vec3>& pos) { ::set_positions(system, pos); }
-    void set_forces(std::vector<Vec3>& forces, std::vector<NodeTag>& tags) { ::set_forces(system, forces, tags); }
-    void set_velocities(std::vector<Vec3>& vels, std::vector<NodeTag>& tags) { ::set_velocities(system, vels, tags); }
+    void set_positions(std::vector<Vec3>& pos) { ExaDiS::pybind::set_positions(system, pos); }
+    void set_forces(std::vector<Vec3>& forces, std::vector<NodeTag>& tags) { ExaDiS::pybind::set_forces(system, forces, tags); }
+    void set_velocities(std::vector<Vec3>& vels, std::vector<NodeTag>& tags) { ExaDiS::pybind::set_velocities(system, vels, tags); }
     
     Crystal* get_crystal() { return &system->crystal; }
     SerialDisNet* get_serial_network() { return system->get_serial_network(); }
     
-    std::vector<std::vector<int> > physical_links() { return system->get_serial_network()->physical_links(); }
+    SerialDisNet::DisLinks physical_links() { return system->get_serial_network()->physical_links(); }
     
     void write_data(std::string filename) { system->get_serial_network()->write_data(filename); }
 };
@@ -232,7 +233,7 @@ struct SystemBind : ExaDisNet {
     void set_applied_stress(std::vector<double> applied_stress) { 
         system->extstress = Mat33().voigt(applied_stress.data()); 
     }
-    void print_timers(bool dev) { system->print_timers(dev); }
+    void print_timers(double timetot, bool dev) { system->print_timers(timetot, dev); }
 };
 
 
@@ -244,7 +245,7 @@ struct SystemBind : ExaDisNet {
 struct ForceBind {
     enum ForceModel {
         LINE_TENSION_MODEL, CUTOFF_MODEL, DDD_FFT_MODEL, 
-        SUBCYCLING_MODEL, PYTHON_MODEL,
+        SUBCYCLING_MODEL, GLOBAL_MODEL, PYTHON_MODEL,
         FORCE_FFT,
     };
     Force* force = nullptr;
@@ -259,6 +260,8 @@ struct ForceBind {
         ForceFFT* forcefft = nullptr;
         if (model == DDD_FFT_MODEL) {
             forcefft = static_cast<ForceType::DDD_FFT_MODEL*>(force)->get_force2()->get_flong();
+        } else if (model == GLOBAL_MODEL) {
+            forcefft = static_cast<ForceType::GLOBAL_MODEL*>(force)->get<ForceGlobal::FORCE_FFT>();
         } else if (model == FORCE_FFT) {
             forcefft = static_cast<ForceFFT*>(force);
         } else { 
@@ -343,6 +346,8 @@ struct MobilityBind {
     MobilityBind() {}
     MobilityBind(Mobility* _mobility, Params _params) : 
     mobility(_mobility), params(_params) {}
+    std::string name() { return std::string(mobility->name()); }
+    bool non_linear() { return mobility->non_linear; }
     void compute(SystemBind& sysbind) { mobility->compute(sysbind.system); }
 };
 
@@ -371,6 +376,26 @@ public:
     const char* name() { return "MobilityPython"; }
 };
 
+template<class M>
+MobilityBind make_mobility(Params& params, py::dict mobparams)
+{
+    params.check_params();
+    System* system = make_system(new SerialDisNet(), Crystal(params.crystal), params);
+    
+    Mobility* mobility = new M(system, mobparams);
+    
+    exadis_delete(system);
+    
+    return MobilityBind(mobility, params);
+}
+
+} } // namespace ExaDiS::pybind
+
+#include "exadis_pybind_registry.h"
+#include "mobility_global_list.h"
+
+
+namespace ExaDiS { namespace pybind {
 
 /*---------------------------------------------------------------------------
  *
@@ -429,22 +454,16 @@ typedef typename Topology::Params TParams;
 template<class F>
 Topology* make_topology_parallel(System* system, Force* force, Mobility* mobility, TParams& topolparams)
 {
-    Topology* topology;
-    if (strcmp(mobility->name(), "MobilityBCC0b") == 0) {
-        topology = new TopologyParallel<F,MobilityType::BCC_0B>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0_fric") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0_FRIC>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityFCC0b") == 0) {
-        topology = new TopologyParallel<F,MobilityType::FCC_0B>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityGlide") == 0) {
-        topology = new TopologyParallel<F,MobilityType::GLIDE>(system, force, mobility, topolparams);
-    } else if (strcmp(mobility->name(), "MobilityBCC_nl") == 0) {
-        topology = new TopologyParallel<F,MobilityType::BCC_NL>(system, force, mobility, topolparams);
-    } else {
-        ExaDiS_fatal("Error: invalid mobility type = %s for TopologyParallel binding\n", mobility->name());
-    }
+    Topology* topology = nullptr;
+    #define X(NAME, ALIAS) \
+        if (strcmp(mobility->name(), #NAME) == 0) { \
+            topology = new TopologyParallel<F, MobilityType::ALIAS>(system, force, mobility, topolparams); \
+        } else
+        EXADIS_MOBILITY_GLOBAL_LIST
+        {
+            ExaDiS_fatal("Error: invalid mobility type = %s for TopologyParallel binding\n", mobility->name());
+        }
+    #undef X
     return topology;
 }
 
@@ -481,5 +500,80 @@ struct CrossSlipBind {
     void handle(SystemBind& sysbind) { crossslip->handle(sysbind.system); }
 };
 
+
+/*---------------------------------------------------------------------------
+ *
+ *    Driver binding
+ *
+ *-------------------------------------------------------------------------*/
+class Driver : public ExaDiSApp {
+public:
+    Driver() : ExaDiSApp() {}
+    Driver(const SystemBind& sysbind) : ExaDiSApp() {
+        set_system_driver(sysbind);
+    }
+    virtual void set_system_driver(const SystemBind& sysbind) {
+        system = sysbind.system;
+    }
+    virtual void set_modules_driver(ForceBind& forcebind, MobilityBind& mobbind,
+                            IntegratorBind& integratorbind, CollisionBind& collisionbind,
+                            TopologyBind& topolbind, RemeshBind& remeshbind,
+                            CrossSlipBind& crossslipbind) {
+        force = forcebind.force;
+        mobility = mobbind.mobility;
+        integrator = integratorbind.integrator;
+        collision = collisionbind.collision;
+        topology = topolbind.topology;
+        remesh = remeshbind.remesh_class;
+        crossslip = crossslipbind.crossslip;
+    }
+    virtual py::dict update_state(py::dict& state) {
+        double* ptr;
+        // edir
+        py::array_t<double> pyedir(3);
+        ptr = static_cast<double*>(pyedir.request().ptr);
+        ptr[0] = edir.x; ptr[1] = edir.y; ptr[2] = edir.z;
+        state["edir"] = pyedir;
+        // applied_stress
+        py::array_t<double> pystress(6);
+        ptr = static_cast<double*>(pystress.request().ptr);
+        ptr[0] = system->extstress.xx(); ptr[1] = system->extstress.yy(); ptr[2] = system->extstress.zz();
+        ptr[3] = system->extstress.yz(); ptr[4] = system->extstress.xz(); ptr[5] = system->extstress.xy();
+        state["applied_stress"] = pystress;
+        // stress / strain / density
+        state["strain"] = strain;
+        state["stress"] = stress;
+        state["density"] = system->density;
+        py::array_t<double> pyEtot(6);
+        ptr = static_cast<double*>(pyEtot.request().ptr);
+        ptr[0] = Etot.xx(); ptr[1] = Etot.yy(); ptr[2] = Etot.zz();
+        ptr[3] = Etot.yz(); ptr[4] = Etot.xz(); ptr[5] = Etot.xy();
+        state["Etot"] = pyEtot;
+        // time
+        state["dt"] = system->realdt;
+        state["time"] = tottime;
+        state["istep"] = istep;
+        return state;
+    }
+    virtual py::dict read_restart_driver(py::dict& state, std::string restartfile) {
+        // read restart
+        ExaDiSApp::read_restart(restartfile);
+        // set crystal orientation
+        py::buffer_info buffer(
+            &system->crystal.R, sizeof(double), py::format_descriptor<double>::format(),
+            2, {3, 3}, {sizeof(double) * 3, sizeof(double)}
+        );
+        state["Rorient"] = py::array(buffer);
+        // update dictionary
+        update_state(state);
+        // replace with dummy system so that we don't delete 
+        // the original system object upon destruction
+        system = make_system(new SerialDisNet());
+        return state;
+    }
+};
+
+
+} } // namespace ExaDiS::pybind
 
 #endif

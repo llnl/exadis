@@ -13,6 +13,8 @@
 
 #include <Kokkos_ScatterView.hpp>
 #include "system.h"
+#include "force_iso.h"
+#include "force_lt.h"
 
 namespace ExaDiS {
 
@@ -199,6 +201,8 @@ namespace ForceType {
     typedef ForceSeg<ForceSegN2<SegSegIso> > BRUTE_FORCE_N2;
     typedef ForceCollection2<CORE_SELF_PKEXT,BRUTE_FORCE_N2> N2_MODEL;
 }
+
+EXADIS_FORCE(ForceType::BRUTE_FORCE_N2, FORCE_N2_ISO)
 
 } // namespace ExaDiS
 

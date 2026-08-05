@@ -44,11 +44,11 @@ struct Vec3_t
     }
     
     KOKKOS_FORCEINLINE_FUNCTION
-    T operator[](const int i) const {
+    const T& operator[](const int i) const {
         if      (i == 0) return x;
         else if (i == 1) return y;
         else if (i == 2) return z;
-        else             return (T)0;
+        else             return x;
     }
     
     KOKKOS_FORCEINLINE_FUNCTION
@@ -69,7 +69,7 @@ struct Vec3_t
     }
     
     KOKKOS_FORCEINLINE_FUNCTION
-    Vec3_t operator+=(const Vec3_t &a) {
+    Vec3_t& operator+=(const Vec3_t &a) {
         x += a.x; y += a.y; z += a.z;
         return *this;
     }
@@ -78,7 +78,7 @@ struct Vec3_t
         x += a.x; y += a.y; z += a.z;
     }
     KOKKOS_FORCEINLINE_FUNCTION
-    Vec3_t operator-=(const Vec3_t &a) {
+    Vec3_t& operator-=(const Vec3_t &a) {
         x -= a.x; y -= a.y; z -= a.z;
         return *this;
     }
@@ -188,11 +188,11 @@ public:
     KOKKOS_FORCEINLINE_FUNCTION T zz() const { return rowz.z; }
     
     KOKKOS_FORCEINLINE_FUNCTION
-    Vec3_t<T> operator[](const int i) const {
+    const Vec3_t<T>& operator[](const int i) const {
         if      (i == 0) return rowx;
         else if (i == 1) return rowy;
         else if (i == 2) return rowz;
-        else             return Vec3_t<T>((T)0);
+        else             return rowx;
     }
     KOKKOS_FORCEINLINE_FUNCTION
     Vec3_t<T>& operator[](const int i) {

@@ -43,12 +43,12 @@ private:
     Mat33 cellHinv;
     Vec3 cbox[3];
     int pbc[3];
-    int boxDim[3];
     Mat33 binHinv;
     
 public:
     NeiType type;
     double cutoff;
+    int boxDim[3];
     int Nbox_total;
     int N_local;
     
@@ -67,6 +67,12 @@ public:
     template<class N>
     NeighborBox(System* system, N* net, double _cutoff, NeiType _type) {
         build(system, net, _cutoff, _type);
+    }
+
+    template<class N>
+    NeighborBox(System* system, N* net, double _cutoff, T_x& _pos) {
+        pos = _pos;
+        build(system, net, _cutoff, NeiPos);
     }
     
     KOKKOS_FORCEINLINE_FUNCTION T_box::pointer_type get_head() { return boxes.data(); }
@@ -98,13 +104,15 @@ public:
         Vec3 p;
         if (_type == NeiNode) {
             p = nodes[i].pos;
-        } else {
+        } else if (_type == NeiSeg) {
             auto segs = net->get_segs();
             int n1 = segs[i].n1;
             int n2 = segs[i].n2;
             Vec3 r1 = nodes[n1].pos;
             Vec3 r2 = cell.pbc_position(r1, nodes[n2].pos);
             p = 0.5*(r1+r2);
+        } else {
+            p = pos(i);
         }
         return cell.pbc_fold(p);
     }
@@ -180,8 +188,10 @@ public:
         Kokkos::deep_copy(boxes, -1);
         Kokkos::resize(countBox, Nbox_total);
         
-        // Find box for each node/seg
-        N_local = (type == NeiNode) ? net->Nnodes_local : net->Nsegs_local;
+        // Find box for each node/seg/pos
+        if (type == NeiNode) N_local = net->Nnodes_local;
+        else if (type == NeiSeg) N_local = net->Nsegs_local;
+        else N_local = pos.extent(0);
         
         using policy = Kokkos::RangePolicy<typename N::ExecutionSpace>;
         Kokkos::parallel_for(policy(0, N_local), FindBox(net, this));
@@ -415,7 +425,11 @@ public:
         {
             cutoff2 = neighbox->cutoff * neighbox->cutoff;
             
-            int Ntype_local = (input_type == NeiNode) ? net->Nnodes_local : net->Nsegs_local;
+            int Ntype_local;
+            if (input_type == NeiNode) Ntype_local = net->Nnodes_local;
+            else if (input_type == NeiSeg) Ntype_local = net->Nsegs_local;
+            else Ntype_local = neighbox->pos.extent(0);
+
             int Nid = Ntype_local;
             if (use_subset) {
                 Nid = ind.extent(0);

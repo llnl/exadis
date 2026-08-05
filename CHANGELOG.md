@@ -1,6 +1,35 @@
-
 # Change Log
 All notable changes to ExaDiS will be documented in this file.
+
+
+## Version 0.2.0 - Mar 4, 2026
+
+### Added
+- Added registry mechanisms for force and mobility types
+- Added pybind submodule registry mechanism
+- Added a more flexible ForceGlobal model
+- Added SYCL compilation option
+- Added crystal option num_bcc_plane_families to allow for 110, 112, and 123 BCC planes
+- Added check for NaNs in time-integrators
+- Added build option to use compute maps instead of atomic operations
+- Added force map option in ForceFFT and ForceSeg classes
+- Added binding to internal functions for manipulating SerialDisNet instances
+- Added new coarsening mode in Remesh class
+
+
+### Changed
+- Changed FCC_0_FRIC mobility to have offset and scaling factors
+- Refactored force binding for more direct access to backend classes
+- Added check for crystallographic planes when testing for violations in collision
+- Modified the collision function to better handle hinges
+- Allowed for variable number of subgroups in subcycling integration
+
+
+### Fixed
+- Circumvented neighbor list miscompilation bug with CUDA 12.6+
+- Removed case-sensitive check for Kokkos_ENABLE_CUDA option
+- Added missing fence in test_kokkos
+- Checking for use of exadis_plastic_strain in pyexdis driver 
 
 
 ## Version 0.1.4 - Mar 31, 2025

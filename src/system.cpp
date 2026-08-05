@@ -341,11 +341,13 @@ void System::write_config(std::string filename)
  *    Function:     System::print_timers()
  *
  *-------------------------------------------------------------------------*/
-void System::print_timers(bool dev)
+void System::print_timers(double timetot, bool dev)
 {
-    double timetot = 0.0;
-    for (int i = 0; i < TIMER_END; i++)
-        timetot += timer[i].accumtime;
+    if (timetot < 0.0) {
+        timetot = 0.0;
+        for (int i = 0; i < TIMER_END; i++)
+            timetot += timer[i].accumtime;
+    }
     double ftime[TIMER_END];
     for (int i = 0; i < TIMER_END; i++)
         ftime[i] = (timetot > 0.0) ? timer[i].accumtime/timetot*100.0 : 0.0;

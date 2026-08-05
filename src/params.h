@@ -42,7 +42,7 @@ struct Params {
     void set_default_params() {
         burgmag = -1.0;
         MU = -1.0;
-        MU = -1.0;
+        NU = -1.0;
         a = -1.0;
         maxseg = -1.0;
         minseg = -1.0;

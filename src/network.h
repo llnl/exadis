@@ -20,7 +20,7 @@ namespace ExaDiS {
 class OpRec; // forward declaration
     
 enum {FREE_BOUND, PBC_BOUND};
-enum NodeConstraints {UNCONSTRAINED = 0, PINNED_NODE = 7, CORNER_NODE = 1};
+enum NodeConstraints {UNCONSTRAINED = 0, PINNED_NODE = 7, CORNER_NODE = 1, SURFACE_NODE = 6};
 
 /*---------------------------------------------------------------------------
  *
@@ -312,6 +312,7 @@ struct Cell
     }
     
     // Python binding
+    void set_pbc(std::vector<int> pbc);
     std::vector<int> get_pbc();
     std::vector<Vec3> pbc_position_array(std::vector<Vec3>& r0, std::vector<Vec3>& r);
     std::vector<Vec3> pbc_position_array(Vec3& r0, std::vector<Vec3>& r);
@@ -455,7 +456,12 @@ public:
         refresh_tags();
     }
     
-    std::vector<std::vector<int> > physical_links();
+    struct DisLinks {
+        int number_of_links = 0;
+        std::vector<std::vector<int>> links_segs, links_nodes;
+        std::vector<int> segs_link;
+    };
+    DisLinks physical_links();
     
     double dislocation_density(double burgmag);
     void write_data(std::string filename);

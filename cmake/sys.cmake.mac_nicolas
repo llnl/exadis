@@ -1,7 +1,7 @@
 set(Kokkos_ENABLE_SERIAL On)
 set(Kokkos_ENABLE_OPENMP Off)
 
-set(PYTHON_EXECUTABLE /Users/bertin1/opt/anaconda3/bin/python)
+set(PYTHON_EXECUTABLE /opt/anaconda3/bin/python)
 
 set(FFTW_INC_DIR /Users/bertin1/Documents/Codes/Libraries/fftw-3.3.10/install_test/include)
 set(FFTW_LIB_DIR /Users/bertin1/Documents/Codes/Libraries/fftw-3.3.10/install_test/lib)

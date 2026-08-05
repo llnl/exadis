@@ -250,9 +250,10 @@ void test_cycle(int Nmult, bool full)
             ExaDiS_log("   Step = %d / %d, Nsegs = %d, dt = %e, elapsed = %.2f sec\n",
             i+1, Nstep, system->Nsegs_total(), system->realdt, timer.seconds());
         }
-
-        system->print_timers();
-        ExaDiS_log("System0 CYCLE (%dx) time: %f sec\n", Nstep, timer.seconds());
+        
+        double tottime = timer.seconds();
+        system->print_timers(tottime);
+        ExaDiS_log("System0 CYCLE (%dx) time: %f sec\n", Nstep, tottime);
         
         delete remesh;
         delete topology;
@@ -302,8 +303,9 @@ void test_cycle(int Nmult, bool full)
             i+1, Nstep, system->Nsegs_total(), system->realdt, timer.seconds());
         }
 
-        system->print_timers();
-        ExaDiS_log("System1 SUBCYCLING CYCLE (%dx) time: %f sec\n", Nstep, timer.seconds());
+        double tottime = timer.seconds();
+        system->print_timers(tottime);
+        ExaDiS_log("System1 SUBCYCLING CYCLE (%dx) time: %f sec\n", Nstep, tottime);
         
         delete remesh;
         delete topology;

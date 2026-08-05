@@ -27,18 +27,22 @@ struct MobilityFCC0
     double vmax, vscale;
     
     struct Params {
-        double Medge, Mscrew;
-        double vmax;
-        Params() { Medge = Mscrew = vmax = -1.0; }
-        Params(double _Medge, double _Mscrew) {
-            Medge = _Medge;
-            Mscrew = _Mscrew;
-            vmax = -1.0;
-        }
-        Params(double _Medge, double _Mscrew, double _vmax) {
+        double Medge = -1.0, Mscrew = -1.0;
+        double vmax = -1.0;
+        Params() = default;
+        Params(double _Medge, double _Mscrew, double _vmax=-1.0) {
             Medge = _Medge;
             Mscrew = _Mscrew;
             vmax = _vmax;
+        }
+        Params(Dict paramslist) {
+            for (auto const& [key, val] : paramslist) {
+                std::string name = dict::get_key(key);
+                if      (name == "Medge")  Medge  = dict::get_val<double>(val);
+                else if (name == "Mscrew") Mscrew = dict::get_val<double>(val);
+                else if (name == "vmax")   vmax   = dict::get_val<double>(val);
+                else ExaDiS_fatal("Error: unknown MobilityFCC0 input parameter %s\n", name.c_str());
+            }
         }
     };
     
@@ -51,7 +55,7 @@ struct MobilityFCC0
             ExaDiS_fatal("Error: MobilityFCC0 requires the use of glide planes\n");
         
         if (params.Medge < 0 || params.Mscrew < 0.0)
-            ExaDiS_fatal("Error: invalid MobilityFCC0 parameter values\n");
+            ExaDiS_fatal("Error: invalid or missing MobilityFCC0 input parameter values\n");
         
         Medge  = params.Medge;
         Mscrew = params.Mscrew;
@@ -168,5 +172,7 @@ namespace MobilityType {
 }
 
 } // namespace ExaDiS
+
+EXADIS_MOBILITY(MobilityFCC0, FCC_0)
 
 #endif

@@ -113,7 +113,7 @@ struct MobilityField {
  *-------------------------------------------------------------------------*/
 struct MobilityFCC0_fric : MobilityFCC0
 {
-    double Fedge, Fscrew;
+    double Fedge, Fscrew, Fscale;
     MobilityField mobility_field;
     MobilityField friction_field;
     
@@ -121,27 +121,34 @@ struct MobilityFCC0_fric : MobilityFCC0
         MobilityFCC0::Params params;
         double Fedge = 0.0;
         double Fscrew = 0.0;
+        double Fscale = 1.0;
         std::string mobility_field_file = "";
         std::string friction_field_file = "";
-        
         Params() { params = MobilityFCC0::Params(); }
-        Params(double _Medge, double _Mscrew, double _Fedge, double _Fscrew, double _vmax,
-               std::string _mobility_field_file="", std::string _friction_field_file="") {
-            params = MobilityFCC0::Params(_Medge, _Mscrew, _vmax);
-            Fedge = _Fedge;
-            Fscrew = _Fscrew;
-            mobility_field_file = _mobility_field_file;
-            friction_field_file = _friction_field_file;
+        Params(Dict paramslist) {
+            for (auto const& [key, val] : paramslist) {
+                std::string name = dict::get_key(key);
+                if      (name == "Medge") params.Medge = dict::get_val<double>(val);
+                else if (name == "Mscrew") params.Mscrew = dict::get_val<double>(val);
+                else if (name == "vmax") params.vmax = dict::get_val<double>(val);
+                else if (name == "Fedge") Fedge = dict::get_val<double>(val);
+                else if (name == "Fscrew") Fscrew = dict::get_val<double>(val);
+                else if (name == "mobility_field") mobility_field_file = dict::get_val<std::string>(val);
+                else if (name == "friction_field") friction_field_file = dict::get_val<std::string>(val);
+                else if (name == "Fscale") Fscale = dict::get_val<double>(val);
+                else ExaDiS_fatal("Error: unknown MobilityFCC0_fric input parameter '%s'\n", name.c_str());
+            }
         }
     };
     
     MobilityFCC0_fric(System* system, Params& params) : MobilityFCC0(system, params.params)
     {
         if (params.Fedge < 0.0 || params.Fscrew < 0.0)
-            ExaDiS_fatal("Error: invalid MobilityFCC0_fric parameter values\n");
+            ExaDiS_fatal("Error: invalid or missing MobilityFCC0_fric input parameter values\n");
         
         Fedge  = params.Fedge;
         Fscrew = params.Fscrew;
+        Fscale = params.Fscale;
         
         if (!params.mobility_field_file.empty())
             mobility_field = MobilityField(system, params.mobility_field_file);
@@ -201,7 +208,7 @@ struct MobilityFCC0_fric : MobilityFCC0
                 
                 double fricStress = Fedge+(Fscrew-Fedge)*dangle;
                 if (friction_field.active)
-                    fricStress *= friction_field.interpolate(cell, rmid);
+                    fricStress += Fscale * friction_field.interpolate(cell, rmid);
                 FricForce += fricStress * bMag * L;
                 
                 // Glide constraints
@@ -254,14 +261,14 @@ struct MobilityFCC0_fric : MobilityFCC0
                 
                 // Subtract friction force to nodal force
                 Vec3 f = fi;
-                if (FricForce > 0.0) {
+                //if (FricForce > 0.0) {
                     double fmag = f.norm();
                     if (fmag > FricForce) {
                         f -= FricForce/fmag * f;
                     } else {
                         f = Vec3(0.0);
                     }
-                }
+                //}
                 
                 // Compute nodal velocity
                 vi = P * (1.0/LtimesB * f);
@@ -281,5 +288,7 @@ namespace MobilityType {
 }
 
 } // namespace ExaDiS
+
+EXADIS_MOBILITY(MobilityFCC0_fric, FCC_0_FRIC)
 
 #endif

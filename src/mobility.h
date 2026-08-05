@@ -110,12 +110,11 @@ void apply_velocity_cap(const double &vmax, const double &vscale, Vec3 &v)
 } // namespace ExaDiS
 
 
+#ifndef EXADIS_PYBIND
+// Used to register mobility class and alias
+#define EXADIS_MOBILITY(Type, Alias)
 // Available mobility types
-#include "mobility_glide.h"
-#include "mobility_bcc0b.h"
-#include "mobility_fcc0.h"
-#include "mobility_fcc0_fric.h"
-#include "mobility_fcc0b.h"
-#include "mobility_bcc_nl.h"
+#include "mobility_global_list.h"
+#endif
 
 #endif
