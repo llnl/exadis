@@ -265,7 +265,6 @@ void ExaDiSApp::oprec_replay(Control& ctrl, std::string oprec_file)
             if (num_files == 0) {
                 ExaDiS_fatal("Error: cannot open data file %s\n", file.c_str());
             } else {
-                fclose(fp);
                 break;
             }
         }
