@@ -44,6 +44,7 @@ private:
     Vec3 cbox[3];
     int pbc[3];
     Mat33 binHinv;
+    bool use_delta_pbc;
     
 public:
     NeiType type;
@@ -182,6 +183,7 @@ public:
                 binH[j][i] = cbox[i][j] / (double)boxDim[i];
         }
         binHinv = binH.inverse();
+        use_delta_pbc = (boxDim[0] > 3 && boxDim[1] > 3 && boxDim[2] > 3);
         
         Nbox_total = boxDim[0] * boxDim[1] * boxDim[2];
         Kokkos::resize(boxes, Nbox_total);
@@ -242,7 +244,10 @@ public:
     double get_neighbor_dist2(const Vec3& p, int k, const Vec3& delta_pbc)
     {
         Vec3 pnei = pos(k);
-        return (pnei+delta_pbc-p).norm2();
+        if (use_delta_pbc)
+            return (pnei+delta_pbc-p).norm2();
+        else
+            return (cell.pbc_position(p, pnei)-p).norm2();
     }
     
     template<class L>
