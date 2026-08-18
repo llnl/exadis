@@ -9,7 +9,14 @@ set(SOURCES
     utils.cpp
 )
 
-add_library(exadis ${SOURCES})
+# Use SHARED library with SYCL
+# Static libraries can cause device context corruption with SYCL when Kokkos::SharedSpace
+if(Kokkos_ENABLE_SYCL AND NOT EXADIS_SYCL_USE_STATIC)
+    add_library(exadis SHARED ${SOURCES})
+    message(STATUS "Building ExaDiS as SHARED library for SYCL (set EXADIS_SYCL_USE_STATIC=ON to override)")
+else()
+    add_library(exadis ${SOURCES})
+endif()
 
 foreach(SUBDIR ${EXADIS_SUBDIRECTORIES})
     add_subdirectory(${SUBDIR})
@@ -58,12 +65,12 @@ target_include_directories(exadis
         ${FFT_INC_DIR}
 )
 
-target_link_libraries(exadis 
-    PUBLIC 
+target_link_libraries(exadis
+    PUBLIC
         kokkos
+        ${EXADIS_LINK_OPTIONS}
     PRIVATE
         ${FFT_LIB}
-        ${EXADIS_LINK_OPTIONS}
 )
 
 # Install rules

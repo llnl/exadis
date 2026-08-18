@@ -39,6 +39,11 @@
 // HIP
 #include <hipfft/hipfft.h>
 
+#elif defined(KOKKOS_ENABLE_SYCL)
+// SYCL with Intel oneMKL
+#include <sycl/sycl.hpp>
+#include <oneapi/mkl/dfti.hpp>
+
 #else
 // FFTW
 #ifdef FFTW
@@ -180,6 +185,65 @@ struct FFT3DTransform<Kokkos::HIP>
             reinterpret_cast<hipfftDoubleComplex*>(out.data()),
             FFT_DIR
         );
+    }
+};
+#endif
+
+/*---------------------------------------------------------------------------
+ *
+ *    Functions:    FFT utility functions and wrappers for the
+ *                  Kokkos::SYCL execution space
+ *
+ *-------------------------------------------------------------------------*/
+#if defined(EXADIS_FFT) && defined(KOKKOS_ENABLE_SYCL)
+template<>
+struct FFTPlan<Kokkos::SYCL> : FFTPlanBase {
+    using descriptor_t = oneapi::mkl::dft::descriptor<oneapi::mkl::dft::precision::DOUBLE,
+                                                      oneapi::mkl::dft::domain::COMPLEX>;
+    descriptor_t* desc = nullptr;
+    bool plan_created = false;
+
+    KOKKOS_INLINE_FUNCTION FFTPlan() {}
+    KOKKOS_INLINE_FUNCTION FFTPlan(const FFTPlan& p) : desc(p.desc) { plan_created = false; }
+
+    void initialize(int _Nx, int _Ny, int _Nz) {
+        Nx = _Nx; Ny = _Ny; Nz = _Nz;
+        if (desc) delete desc;
+        std::vector<std::int64_t> dims = {static_cast<std::int64_t>(Nx),
+                                          static_cast<std::int64_t>(Ny),
+                                          static_cast<std::int64_t>(Nz)};
+        desc = new descriptor_t(dims);
+        desc->set_value(oneapi::mkl::dft::config_param::PLACEMENT, DFTI_NOT_INPLACE);
+        desc->commit(Kokkos::SYCL().sycl_queue());
+        plan_created = true;
+    }
+
+    void finalize() {
+        if (plan_created && desc) {
+            delete desc;
+            desc = nullptr;
+            plan_created = false;
+        }
+    }
+};
+
+template<>
+struct FFT3DTransform<Kokkos::SYCL>
+{
+    template <typename ViewType>
+    FFT3DTransform(FFTPlan<Kokkos::SYCL>& plan,
+                   const ViewType& in, const ViewType& out,
+                   int sign)
+    {
+        auto& queue = Kokkos::SYCL().sycl_queue();
+        auto* in_ptr = reinterpret_cast<std::complex<double>*>(in.data());
+        auto* out_ptr = reinterpret_cast<std::complex<double>*>(out.data());
+        if (sign == FFT_FORWARD) {
+            oneapi::mkl::dft::compute_forward(*plan.desc, in_ptr, out_ptr);
+        } else {
+            oneapi::mkl::dft::compute_backward(*plan.desc, in_ptr, out_ptr);
+        }
+        queue.wait_and_throw();
     }
 };
 #endif
