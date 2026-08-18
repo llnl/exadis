@@ -133,7 +133,6 @@ int main(int argc, char* argv[])
         cliParser::INT, &Nim, 1, "-Nimg", "--nimages", 
         "Number of periodic images to compute the displacement gradient field"
     );
-    parser.parse(cliParser::VERBOSE);
     parser.add_option(cliParser::OPTIONAL, 
         cliParser::BOOL, &pbc[0], 3, "-pbc", "--pbc_flags", 
         "Periodic boundary conditions along the 3 directions"
