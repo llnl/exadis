@@ -946,10 +946,17 @@ PYBIND11_MODULE(pyexadis, m) {
     
     py::class_<SerialDisNet>(m, "SerialDisNet")
         .def(py::init<const Cell&>(), py::arg("cell"))
+        .def_readwrite("cell", &SerialDisNet::cell)
+        .def("_maxindex", [](SerialDisNet& net) { return net.maxindex; })
+        .def("_recycled_indices", [](SerialDisNet& net) {
+            std::stack<int> s = net.recycled_indices;
+            std::vector<int> vec;
+            while (!s.empty()) { vec.push_back(s.top()); s.pop(); }
+            return vec;
+        })
         .def("number_of_nodes", &SerialDisNet::number_of_nodes)
         .def("number_of_segs", &SerialDisNet::number_of_segs)
         .def("dislocation_density", &SerialDisNet::dislocation_density)
-        .def_readwrite("cell", &SerialDisNet::cell)
         .def("nodes", [](SerialDisNet& net, int i) -> DisNode& {
             if (i < 0 || i >= net.number_of_nodes()) ExaDiS_fatal("Error: invalid node index %d in nodes()\n", i);
             return net.nodes[i];
