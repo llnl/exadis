@@ -398,7 +398,7 @@ class MobilityLaw:
             else:
                 state["nodevels"] = np.array([v])
                 state["nodeveltags"] = np.array([tag])
-        return f
+        return v
 
 
 class MobilityLawPython:
