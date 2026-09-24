@@ -42,6 +42,7 @@ public:
     
     int istep;
     Mat33 Etot;
+    Mat33 Eptot, Wptot; // accumulated plastic strain and plastic spin tensors
     double stress, strain, pstrain;
     double tottime;
     Vec3 edir;
@@ -68,7 +69,7 @@ public:
     static Stepper MAX_WALLTIME(double maxtime) { return Stepper(Stepper::MAX_WALLTIME, maxtime); }
     
     struct Prop {
-        enum fields {STEP, STRAIN, STRESS, DENSITY, NNODES, NSEGS, DT, TIME, WALLTIME, EDIR, RORIENT, ALLSTRESS};
+        enum fields {STEP, STRAIN, STRESS, DENSITY, NNODES, NSEGS, DT, TIME, WALLTIME, EDIR, RORIENT, ALLSTRESS, EPTOT, WPTOT, PDIST};
         static fields get_field(std::string& name) {
             if (name == "Step" || name == "step") return STEP;
             else if (name == "Strain" || name == "strain") return STRAIN;
@@ -82,6 +83,9 @@ public:
             else if (name == "edir") return EDIR;
             else if (name == "Rorient") return RORIENT;
             else if (name == "Allstress" || name == "allstress") return ALLSTRESS;
+            else if (name == "Eptot" || name == "eptot") return EPTOT;
+            else if (name == "Wptot" || name == "wptot") return WPTOT;
+            else if (name == "Pdist" || name == "pdist") return PDIST;
             else ExaDiS_fatal("Unknown control property name = %s\n", name.c_str());
             return STEP;
         }
