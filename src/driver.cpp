@@ -25,6 +25,8 @@ ExaDiSApp::ExaDiSApp(int argc, char* argv[])
     
     istep = 0;
     Etot = Mat33().zero();
+    Eptot = Mat33().zero();
+    Wptot = Mat33().zero();
     stress = strain = pstrain = 0.0;
     tottime = 0.0;
    
@@ -46,6 +48,8 @@ ExaDiSApp::ExaDiSApp()
 {
     istep = 0;
     Etot = Mat33().zero();
+    Eptot = Mat33().zero();
+    Wptot = Mat33().zero();
     stress = strain = pstrain = 0.0;
     tottime = 0.0;
     dealloc = false;
@@ -160,6 +164,10 @@ void ExaDiSApp::write_restart(std::string restartfile)
     fprintf(fp, "step %d\n", istep);
     fprintf(fp, "Etot %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
     Etot.xx(), Etot.xy(), Etot.xz(), Etot.yx(), Etot.yy(), Etot.yz(), Etot.zx(), Etot.zy(), Etot.zz());
+    fprintf(fp, "Eptot %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
+    Eptot.xx(), Eptot.xy(), Eptot.xz(), Eptot.yx(), Eptot.yy(), Eptot.yz(), Eptot.zx(), Eptot.zy(), Eptot.zz());
+    fprintf(fp, "Wptot %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
+    Wptot.xx(), Wptot.xy(), Wptot.xz(), Wptot.yx(), Wptot.yy(), Wptot.yz(), Wptot.zx(), Wptot.zy(), Wptot.zz());
     fprintf(fp, "stress %.17g\n", stress);
     fprintf(fp, "strain %.17g\n", strain);
     fprintf(fp, "pstrain %.17g\n", pstrain);
@@ -263,6 +271,18 @@ void ExaDiSApp::read_restart(std::string restartfile)
             &Etot[0][0], &Etot[0][1], &Etot[0][2],
             &Etot[1][0], &Etot[1][1], &Etot[1][2],
             &Etot[2][0], &Etot[2][1], &Etot[2][2]);
+        }
+        else if (strncmp(line, "Eptot", 5) == 0) {
+            sscanf(line, "Eptot %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+            &Eptot[0][0], &Eptot[0][1], &Eptot[0][2],
+            &Eptot[1][0], &Eptot[1][1], &Eptot[1][2],
+            &Eptot[2][0], &Eptot[2][1], &Eptot[2][2]);
+        }
+        else if (strncmp(line, "Wptot", 5) == 0) {
+            sscanf(line, "Wptot %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+            &Wptot[0][0], &Wptot[0][1], &Wptot[0][2],
+            &Wptot[1][0], &Wptot[1][1], &Wptot[1][2],
+            &Wptot[2][0], &Wptot[2][1], &Wptot[2][2]);
         }
         else if (strncmp(line, "stress", 6) == 0) { sscanf(line, "stress %lf\n", &stress); }
         else if (strncmp(line, "strain", 6) == 0) { sscanf(line, "strain %lf\n", &strain); }
@@ -382,6 +402,11 @@ void ExaDiSApp::read_restart(std::string restartfile)
  *-------------------------------------------------------------------------*/
 void ExaDiSApp::update_mechanics(Control& ctrl)
 {
+    // Accumulate the full plastic distortion tensor from the per-step
+    // increments (Eptot = symmetric strain, Wptot = antisymmetric spin)
+    Eptot += system->dEp;
+    Wptot += system->dWp;
+
     if (ctrl.rotation) {
         // Counter-rotate stress wrt dislocation configuration
         double p1 = - system->dWp.zy();
@@ -479,9 +504,25 @@ void ExaDiSApp::output(Control& ctrl)
                 if (header) fprintf(fp, " Rxx Rxy Rxz Ryx Ryy Ryz Rzx Rzy Rzz"); 
                 else fprintf(fp, "%e %e %e %e %e %e %e %e %e ", R.xx(), R.xy(), R.xz(), R.yx(), R.yy(), R.yz(), R.zx(), R.zy(), R.zz());
             } else if (field == Prop::ALLSTRESS) {
-                if (header) fprintf(fp, " Sxx Syy Szz Sxy Sxz Syz"); 
-                else fprintf(fp, "%e %e %e %e %e %e ", system->extstress.xx(), system->extstress.yy(), system->extstress.zz(), 
+                if (header) fprintf(fp, " Sxx Syy Szz Sxy Sxz Syz");
+                else fprintf(fp, "%e %e %e %e %e %e ", system->extstress.xx(), system->extstress.yy(), system->extstress.zz(),
                                                        system->extstress.xy(), system->extstress.xz(), system->extstress.yz());
+            } else if (field == Prop::EPTOT) {
+                if (header) fprintf(fp, " Epxx Epxy Epxz Epyx Epyy Epyz Epzx Epzy Epzz");
+                else fprintf(fp, "%e %e %e %e %e %e %e %e %e ", Eptot.xx(), Eptot.xy(), Eptot.xz(),
+                                                                Eptot.yx(), Eptot.yy(), Eptot.yz(),
+                                                                Eptot.zx(), Eptot.zy(), Eptot.zz());
+            } else if (field == Prop::WPTOT) {
+                if (header) fprintf(fp, " Wpxx Wpxy Wpxz Wpyx Wpyy Wpyz Wpzx Wpzy Wpzz");
+                else fprintf(fp, "%e %e %e %e %e %e %e %e %e ", Wptot.xx(), Wptot.xy(), Wptot.xz(),
+                                                                Wptot.yx(), Wptot.yy(), Wptot.yz(),
+                                                                Wptot.zx(), Wptot.zy(), Wptot.zz());
+            } else if (field == Prop::PDIST) {
+                Mat33 Bp = Eptot + Wptot; // full plastic distortion tensor
+                if (header) fprintf(fp, " Bpxx Bpxy Bpxz Bpyx Bpyy Bpyz Bpzx Bpzy Bpzz");
+                else fprintf(fp, "%e %e %e %e %e %e %e %e %e ", Bp.xx(), Bp.xy(), Bp.xz(),
+                                                                Bp.yx(), Bp.yy(), Bp.yz(),
+                                                                Bp.zx(), Bp.zy(), Bp.zz());
             }
         }
         fprintf(fp, "\n");
